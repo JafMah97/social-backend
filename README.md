@@ -33,7 +33,6 @@ src/
 - [ ] WebSocket rooms
 - [ ] Database integration (Prisma)
 
-
 ## 🛠️ Setup & Run
 
 ### Prerequisites
@@ -41,8 +40,6 @@ src/
 - Node.js (v18 or higher recommended)
 
 ### Installation
-
-
 
 1.  Clone the repository:
     ```bash
@@ -67,10 +64,11 @@ src/
 - **Timezone:** `Europe/Paris`
 
 ## Project Details
+
 ### 📄 License
+
 This project is licensed under the MIT License—feel free to use, fork, and contribute.
 
 ### ✨ Author
+
 Made with ❤️ by JafMah97
-
-
