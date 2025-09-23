@@ -2,5 +2,5 @@
 declare module 'fastify-list-routes' {
   import { FastifyInstance } from 'fastify'
   // eslint-disable-next-line no-unused-vars
-  export default function listRoutes(app: FastifyInstance): void 
+  export default function listRoutes(app: FastifyInstance): void
 }

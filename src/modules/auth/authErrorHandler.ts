@@ -6,7 +6,6 @@ import {
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'
 import { ZodError } from 'zod'
 
-
 interface FastifyErrorWithDetails extends FastifyError {
   details?: Array<{ field: string; message: string }>
 }

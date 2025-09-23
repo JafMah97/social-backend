@@ -14,7 +14,6 @@ import authenticatePlugin from '../plugins/authenticate'
 import socketPlugin from '../plugins/websocket'
 import errorHandlerPlugin from '../plugins/errorHandler'
 
-
 import authIndex from '../modules/auth/authIndex'
 
 const __filename = fileURLToPath(import.meta.url)

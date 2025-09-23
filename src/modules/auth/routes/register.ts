@@ -4,7 +4,7 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { registerSchema } from '../authSchemas'
-import {  authErrorHandler } from '../authErrorHandler'
+import { authErrorHandler } from '../authErrorHandler'
 import { hashPassword } from '../../../utils/hash'
 import { sendVerificationCode } from '../../../utils/mailer'
 import crypto from 'crypto'

@@ -7,7 +7,7 @@ import registerRoute from './routes/register'
 // import resetPasswordRoute from './routes/resetPassword'
 
 const authIndex: FastifyPluginAsync = async (fastify) => {
-  fastify.register(registerRoute, {prefix:"/auth"})
+  fastify.register(registerRoute, { prefix: '/auth' })
   // fastify.register(verifyEmailRoute)
   // fastify.register(resendVerificationRoute)
   // fastify.register(loginRoute)

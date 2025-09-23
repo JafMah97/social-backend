@@ -34,7 +34,6 @@ const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
       })
   })
 
-
   // 2. Global error handler
   fastify.setErrorHandler(
     (
