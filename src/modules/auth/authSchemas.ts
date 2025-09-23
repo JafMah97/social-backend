@@ -25,3 +25,15 @@ export const registerSchema = z.object({
 
 // Type inference for request body
 export type RegisterInput = z.infer<typeof registerSchema>
+
+// ------------------------------------------------------------------
+//login
+// ------------------------------------------------------------------
+export const loginSchema = z.object({
+  email: z.email('Invalid email format'),
+  password: z
+    .string({ error: 'Password is required' })
+    .min(6, 'Password must be at least 6 characters'),
+})
+
+export type LoginInput = z.infer<typeof loginSchema>

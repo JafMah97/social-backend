@@ -1,4 +1,3 @@
-// tsconfig.json
 {
   // Visit https://aka.ms/tsconfig to read more about this file
 
@@ -21,5 +20,11 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "noEmit": true
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "ESNext"
+    },
+    "esm": true
   }
 }
