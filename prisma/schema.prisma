@@ -28,6 +28,9 @@ model User {
   coverImage        String  @default("/uploads/default-cover.jpg")
   isPrivate         Boolean @default(false)
   isProfileComplete Boolean @default(false)
+  emailVerified     Boolean @default(false)
+
+
 
   // ─── Lifecycle & Status ─────────────────────────────
   createdAt   DateTime  @default(now())
