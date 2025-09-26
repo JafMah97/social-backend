@@ -72,6 +72,10 @@ const registerRoute: FastifyPluginAsync = async (fastify) => {
             passwordHash,
             emailVerified: false,
             isPrivate: false,
+            verificationCode,
+            codeExpiresAt: expiresAt,
+            emailVerificationToken,
+            tokenExpiresAt: expiresAt,
           },
           select: {
             id: true,

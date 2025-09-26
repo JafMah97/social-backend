@@ -30,8 +30,8 @@ model User {
   isProfileComplete Boolean @default(false)
   emailVerified     Boolean @default(false)
 
- // ─── Sessions ───────────────────────────────────────
-  sessions      Session[]  // ← Add this line to complete the relation
+  // ─── Sessions ───────────────────────────────────────
+  sessions      Session[]  
 
   // ─── Lifecycle & Status ─────────────────────────────
   createdAt   DateTime  @default(now())
@@ -45,6 +45,10 @@ model User {
   // ─── Role & Verification ────────────────────────────
   role          UserRole?
   verifications VerificationToken[]
+  verificationCode        String?
+  codeExpiresAt           DateTime?
+  emailVerificationToken  String?
+  tokenExpiresAt          DateTime?
 
   // ─── Messaging ──────────────────────────────────────
   conversationsAsUser1 Conversation[] @relation("User1Conversations")
@@ -101,7 +105,9 @@ model UserRole {
   assignedAt DateTime @default(now())
 
   // ─── Relations ──────────────────────────────────────
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum Role {
@@ -118,7 +124,7 @@ model UserSettings {
   // ─── Preferences ────────────────────────────────────
   darkMode Boolean @default(false)
   language String  @default("en")
-  layout   String  @default("comfortable") // e.g. "compact", "comfortable", "grid"
+  layout   String  @default("comfortable")
 
   // ─── Notifications ─────────────────────────────────
   emailNotifications Boolean @default(true)
@@ -134,7 +140,9 @@ model UserSettings {
   updatedAt DateTime @updatedAt
 
   // ─── Relations ──────────────────────────────────────
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ------------------------------------------------------------
@@ -156,7 +164,9 @@ model VerificationToken {
   createdAt DateTime @default(now())
 
   // ─── Relations ─────────────────────────────────────
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum VerificationType {
@@ -167,13 +177,15 @@ enum VerificationType {
 
 model Session {
   id          String   @id @default(uuid())
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String
   token       String   @unique
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime @default(now())
   expiresAt   DateTime
+
+  @@index([userId])
 }
 
 // ------------------------------------------------------------
@@ -212,7 +224,7 @@ model Post {
   updatedAt DateTime @updatedAt
 
   // ─── Relations ──────────────────────────────────────
-  author        User           @relation(fields: [authorId], references: [id])
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments      Comment[]
   likes         Like[]
   notifications Notification[]
@@ -236,17 +248,17 @@ model SavedPost {
 
   // ─── Metadata ───────────────────────────────────────
   savedAt   DateTime  @default(now())
-  isRemoved Boolean   @default(false) // Optional: for unsaving without hard delete
+  isRemoved Boolean   @default(false)
   removedAt DateTime?
 
-  // ─── Snapshot (for UI caching) ──────────────────────
+  // ─── Snapshot ──────────────────────────────────────
   postTitle  String?
   postImage  String?
   postAuthor String?
 
   // ─── Relations ──────────────────────────────────────
-  user User @relation(fields: [userId], references: [id])
-  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@unique([userId, postId])
@@ -286,8 +298,8 @@ model Tag {
   name String @unique
 
   // ─── Metadata ───────────────────────────────────────
-  description String? // Optional: for SEO or admin notes
-  isActive    Boolean @default(true) // Optional: for moderation or archiving
+  description String?
+  isActive    Boolean @default(true)
 
   // ─── Timestamps ─────────────────────────────────────
   createdAt DateTime @default(now())
@@ -306,11 +318,11 @@ model PostTag {
   tagId  String
 
   // ─── Relations ──────────────────────────────────────
-  post Post @relation(fields: [postId], references: [id])
-  tag  Tag  @relation(fields: [tagId], references: [id])
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   // ─── Metadata ───────────────────────────────────────
-  assignedAt DateTime @default(now()) // Optional: for analytics or audit
+  assignedAt DateTime @default(now())
 
   // ─── Indexes ────────────────────────────────────────
   @@id([postId, tagId])
@@ -330,8 +342,8 @@ model Comment {
 
   // ─── Content ────────────────────────────────────────
   content        String
-  authorUsername String? // Optional: snapshot for UI
-  authorImage    String? // Optional: snapshot for UI
+  authorUsername String?
+  authorImage    String?
 
   // ─── Moderation ─────────────────────────────────────
   isFlagged  Boolean   @default(false)
@@ -344,8 +356,8 @@ model Comment {
   updatedAt DateTime @updatedAt
 
   // ─── Relations ──────────────────────────────────────
-  author            User                @relation(fields: [authorId], references: [id])
-  post              Post                @relation(fields: [postId], references: [id], map: "Comment_postId_fkey_custom")
+  author            User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post              Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
   commentLikes      CommentLike[]
   CommentAuthorInfo CommentAuthorInfo[]
 
@@ -363,11 +375,11 @@ model CommentLike {
 
   // ─── Metadata ───────────────────────────────────────
   likedAt   DateTime  @default(now())
-  isRemoved Boolean   @default(false) // Optional: for undo-like or soft delete
+  isRemoved Boolean   @default(false)
   removedAt DateTime?
 
   // ─── Relations ──────────────────────────────────────
-  user    User    @relation(fields: [userId], references: [id])
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
@@ -383,8 +395,8 @@ model CommentAuthorInfo {
   authorId  String
 
   // ─── Snapshot Metadata ──────────────────────────────
-  authorUsername String? // Optional: cached for UI rendering
-  authorImage    String? // Optional: avatar or profile image
+  authorUsername String?
+  authorImage    String?
 
   // ─── Lifecycle ──────────────────────────────────────
   createdAt  DateTime  @default(now())
@@ -395,8 +407,8 @@ model CommentAuthorInfo {
   flagReason String?
 
   // ─── Relations ──────────────────────────────────────
-  comment Comment @relation(fields: [commentId], references: [id])
-  author  User    @relation(fields: [authorId], references: [id])
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@index([authorId])
@@ -416,12 +428,12 @@ model Like {
 
   // ─── Metadata ───────────────────────────────────────
   likedAt   DateTime  @default(now())
-  isRemoved Boolean   @default(false) // Optional: for undoing likes or soft delete
-  removedAt DateTime? // Optional: timestamp for when like was removed
+  isRemoved Boolean   @default(false)
+  removedAt DateTime?
 
   // ─── Relations ──────────────────────────────────────
-  user User @relation(fields: [userId], references: [id])
-  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@unique([userId, postId])
@@ -445,18 +457,18 @@ model Follow {
   followerImage    String?
 
   // ─── Moderation & Lifecycle ─────────────────────────
-  isPending Boolean   @default(false) // for private accounts or request-based follows
-  isBlocked Boolean   @default(false) // if follower is blocked
-  isMuted   Boolean   @default(false) // if follower muted the following
-  isRemoved Boolean   @default(false) // soft delete
+  isPending Boolean   @default(false)
+  isBlocked Boolean   @default(false)
+  isMuted   Boolean   @default(false)
+  isRemoved Boolean   @default(false)
   removedAt DateTime?
 
   // ─── Timestamps ─────────────────────────────────────
   followedAt DateTime @default(now())
 
   // ─── Relations ──────────────────────────────────────
-  follower  User @relation("Followers", fields: [followerId], references: [id])
-  following User @relation("Following", fields: [followingId], references: [id])
+  follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@unique([followerId, followingId])
@@ -485,8 +497,8 @@ model FollowRequest {
   senderImage    String?
 
   // ─── Relations ──────────────────────────────────────
-  sender   User @relation("SentRequests", fields: [senderId], references: [id])
-  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id])
+  sender   User @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@unique([senderId, receiverId])
@@ -554,8 +566,8 @@ enum NotificationType {
 model Notification {
   // ─── Identity ───────────────────────────────────────
   id        String  @id @default(cuid())
-  userId    String // recipient
-  actorId   String // initiator
+  userId    String
+  actorId   String
   postId    String?
   storyId   String?
   messageId String?
@@ -563,9 +575,9 @@ model Notification {
   // ─── Content ────────────────────────────────────────
   type        NotificationType
   messageText String?
-  title       String? // Optional: for UI headers
-  link        String? // Optional: deep link to content
-  icon        String? // Optional: icon name or URL
+  title       String?
+  link        String?
+  icon        String?
 
   // ─── Status & Lifecycle ─────────────────────────────
   isRead     Boolean   @default(false)
@@ -580,11 +592,11 @@ model Notification {
   updatedAt DateTime @updatedAt
 
   // ─── Relations ──────────────────────────────────────
-  user    User     @relation("Recipient", fields: [userId], references: [id])
-  actor   User     @relation("Actor", fields: [actorId], references: [id])
-  post    Post?    @relation(fields: [postId], references: [id])
-  story   Story?   @relation(fields: [storyId], references: [id])
-  message Message? @relation(fields: [messageId], references: [id])
+  user    User     @relation("Recipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor   User     @relation("Actor", fields: [actorId], references: [id], onDelete: Cascade)
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  story   Story?   @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@index([userId])
@@ -604,7 +616,7 @@ model UserMedia {
   userId String
 
   // ─── Content Details ────────────────────────────────
-  source    String? // Optional: where it came from (e.g. "camera", "upload", "external")
+  source    String?
   mediaType UserMediaType @default(IMAGE)
   mediaUrl  String
 
@@ -620,7 +632,7 @@ model UserMedia {
   updatedAt DateTime @updatedAt
 
   // ─── Relations ──────────────────────────────────────
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@index([userId])
@@ -661,7 +673,7 @@ model UserActivityLog {
   updatedAt DateTime @updatedAt
 
   // ─── Relations ──────────────────────────────────────
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@index([userId])
@@ -694,7 +706,7 @@ model Conversation {
   id          String  @id @default(cuid())
   user1Id     String
   user2Id     String
-  blockedById String? // Optional: who blocked the conversation
+  blockedById String?
 
   // ─── Lifecycle & Metadata ───────────────────────────
   createdAt     DateTime  @default(now())
@@ -705,9 +717,9 @@ model Conversation {
   archivedAt    DateTime?
 
   // ─── Relations ──────────────────────────────────────
-  user1     User      @relation("User1Conversations", fields: [user1Id], references: [id])
-  user2     User      @relation("User2Conversations", fields: [user2Id], references: [id])
-  blockedBy User?     @relation("BlockedByUser", fields: [blockedById], references: [id])
+  user1     User      @relation("User1Conversations", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2     User      @relation("User2Conversations", fields: [user2Id], references: [id], onDelete: Cascade)
+  blockedBy User?     @relation("BlockedByUser", fields: [blockedById], references: [id], onDelete: Cascade)
   messages  Message[]
 
   // ─── Indexes ────────────────────────────────────────
@@ -742,9 +754,9 @@ model Message {
   updatedAt DateTime @updatedAt
 
   // ─── Relations ──────────────────────────────────────
-  conversation  Conversation   @relation(fields: [conversationId], references: [id])
-  sender        User           @relation("SenderMessages", fields: [senderId], references: [id])
-  recipient     User           @relation("RecipientMessages", fields: [recipientId], references: [id])
+  conversation  Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender        User           @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient     User           @relation("RecipientMessages", fields: [recipientId], references: [id], onDelete: Cascade)
   notifications Notification[]
 
   // ─── Indexes ────────────────────────────────────────
@@ -768,7 +780,7 @@ model Report {
   // ─── Content & Moderation ───────────────────────────
   reason      String
   status      ReportStatus @default(PENDING)
-  adminNote   String? // Optional: internal moderation notes
+  adminNote   String?
   isResolved  Boolean      @default(false)
   resolvedAt  DateTime?
   respondedAt DateTime?
@@ -778,8 +790,8 @@ model Report {
   updatedAt DateTime @updatedAt
 
   // ─── Relations ──────────────────────────────────────
-  reporter   User @relation("Reporter", fields: [reporterId], references: [id])
-  targetPost Post @relation(fields: [targetPostId], references: [id])
+  reporter   User @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetPost Post @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@index([reporterId])
@@ -836,7 +848,7 @@ model Story {
   expiresAt DateTime
 
   // ─── Relations ──────────────────────────────────────
-  user          User             @relation(fields: [userId], references: [id])
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   views         StoryView[]
   highlights    StoryHighlight[]
   likes         StoryLike[]
@@ -876,15 +888,15 @@ model StoryView {
 
   // ─── Metadata ───────────────────────────────────────
   viewedAt   DateTime @default(now())
-  isPrivate  Boolean  @default(false) // Optional: for anonymous or restricted views
+  isPrivate  Boolean  @default(false)
   isFlagged  Boolean  @default(false)
   flagReason String?
-  location   String? // Optional: geo-tag for analytics
-  device     String? // Optional: device type or platform
+  location   String?
+  device     String?
 
   // ─── Relations ──────────────────────────────────────
-  story  Story @relation(fields: [storyId], references: [id])
-  viewer User  @relation(fields: [viewerId], references: [id])
+  story  Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer User  @relation(fields: [viewerId], references: [id], onDelete: Cascade)
 
   // ─── Composite Primary Key ──────────────────────────
   @@id([storyId, viewerId])
@@ -907,13 +919,13 @@ model StoryHighlight {
   deletedAt DateTime?
 
   // ─── Metadata ───────────────────────────────────────
-  title      String? // Optional: highlight label or name
-  coverImage String? // Optional: thumbnail or preview image
-  isPinned   Boolean @default(false) // Optional: for prioritizing highlights
+  title      String?
+  coverImage String?
+  isPinned   Boolean @default(false)
 
   // ─── Relations ──────────────────────────────────────
-  story Story @relation(fields: [storyId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@unique([storyId, userId])
@@ -930,16 +942,16 @@ model StoryLike {
 
   // ─── Metadata ───────────────────────────────────────
   likedAt      DateTime  @default(now())
-  userUsername String? // Optional: snapshot for UI rendering
-  userImage    String? // Optional: avatar or profile image
-  isRemoved    Boolean   @default(false) // Optional: for undo-like or soft delete
+  userUsername String?
+  userImage    String?
+  isRemoved    Boolean   @default(false)
   removedAt    DateTime?
-  device       String? // Optional: device type or platform
-  location     String? // Optional: geo-tag for analytics
+  device       String?
+  location     String?
 
   // ─── Relations ──────────────────────────────────────
-  story Story @relation(fields: [storyId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // ─── Indexes ────────────────────────────────────────
   @@unique([userId, storyId])
