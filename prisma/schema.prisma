@@ -49,6 +49,8 @@ model User {
   codeExpiresAt           DateTime?
   emailVerificationToken  String?
   tokenExpiresAt          DateTime?
+  resetPasswordToken      String?
+  resetPasswordTokenExpiresAt DateTime?
 
   // ─── Messaging ──────────────────────────────────────
   conversationsAsUser1 Conversation[] @relation("User1Conversations")
