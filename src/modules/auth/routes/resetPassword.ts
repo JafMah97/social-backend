@@ -8,7 +8,6 @@ import { prisma } from '../../../plugins/client'
 import { authErrorHandler } from '../authErrorHandler'
 import { resetPasswordSchema, type ResetPasswordInput } from '../authSchemas'
 
-
 const resetPasswordRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/reset-password',

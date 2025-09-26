@@ -9,7 +9,6 @@ import { sendPasswordResetLink } from '../../../utils/mailer'
 import { authErrorHandler } from '../authErrorHandler'
 import { forgotPasswordSchema, type ForgotPasswordInput } from '../authSchemas'
 
-
 const forgotPasswordRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/forgot-password',

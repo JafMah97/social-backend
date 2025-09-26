@@ -7,9 +7,10 @@ import crypto from 'crypto'
 import { prisma } from '../../../plugins/client'
 import { sendVerificationCode } from '../../../utils/mailer'
 import { authErrorHandler } from '../authErrorHandler'
-import { resendVerificationSchema, type ResendVerificationInput } from '../authSchemas'
-
-
+import {
+  resendVerificationSchema,
+  type ResendVerificationInput,
+} from '../authSchemas'
 
 const resendVerificationEmailRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post(

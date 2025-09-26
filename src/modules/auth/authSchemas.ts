@@ -62,7 +62,6 @@ export const verifyEmailWithLinkSchema = z.object({
 
 export type VerifyEmailWithLinkInput = z.infer<typeof verifyEmailWithLinkSchema>
 
-
 // ------------------------------------------------------------------
 // Resend Verifectaion Email
 // ------------------------------------------------------------------
@@ -73,9 +72,8 @@ export const resendVerificationSchema = z.object({
 
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>
 
-
 // ------------------------------------------------------------------
-// Forgot Password 
+// Forgot Password
 // ------------------------------------------------------------------
 export const forgotPasswordSchema = z.object({
   email: z.email({ message: 'Invalid email format' }),
@@ -84,7 +82,7 @@ export const forgotPasswordSchema = z.object({
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>
 
 // ------------------------------------------------------------------
-// Reset Password 
+// Reset Password
 // ------------------------------------------------------------------
 export const resetPasswordSchema = z.object({
   token: z.string().min(1, { message: 'Reset token is required' }),
