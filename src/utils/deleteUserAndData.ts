@@ -70,7 +70,9 @@ async function deleteInBatches(
       shouldContinue = result.count === batchSize
 
       if (shouldContinue) {
-        await new Promise((resolve) => globalThis.setTimeout(resolve, BATCH_DELAY_MS))
+        await new Promise((resolve) =>
+          globalThis.setTimeout(resolve, BATCH_DELAY_MS),
+        )
       }
     } catch (error) {
       console.error(`[BatchDelete] Error deleting from ${model}:`, error)
@@ -130,7 +132,7 @@ async function softDeleteUser(
   tx: TransactionType,
   userId: string,
 ): Promise<void> {
-  await (tx ).user.update({
+  await tx.user.update({
     where: { id: userId },
     data: {
       isActive: false,
