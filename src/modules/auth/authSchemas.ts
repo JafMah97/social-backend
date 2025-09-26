@@ -39,7 +39,7 @@ export const loginSchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>
 
 // ------------------------------------------------------------------
-//verifiy the email with code 
+//verifiy the email with code
 // ------------------------------------------------------------------
 
 export const verifyEmailWithCodeSchema = z.object({
@@ -53,7 +53,7 @@ export const verifyEmailWithCodeSchema = z.object({
 export type VerifyEmailWithCodeInput = z.infer<typeof verifyEmailWithCodeSchema>
 
 // ------------------------------------------------------------------
-//verifiy the email with link 
+//verifiy the email with link
 // ------------------------------------------------------------------
 
 export const verifyEmailWithLinkSchema = z.object({
@@ -61,4 +61,3 @@ export const verifyEmailWithLinkSchema = z.object({
 })
 
 export type VerifyEmailWithLinkInput = z.infer<typeof verifyEmailWithLinkSchema>
-
