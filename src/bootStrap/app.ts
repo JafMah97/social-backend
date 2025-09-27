@@ -4,7 +4,6 @@ import cookie from '@fastify/cookie'
 import formbody from '@fastify/formbody'
 import multipart from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
-import listRoutes from 'fastify-list-routes'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -15,6 +14,7 @@ import socketPlugin from '../plugins/websocket'
 import errorHandlerPlugin from '../plugins/errorHandler'
 
 import authIndex from '../modules/auth/authIndex'
+import postIndex from '../modules/post/postIndex'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -59,9 +59,9 @@ export async function buildApp() {
   app.register(authenticatePlugin)
   app.register(socketPlugin)
   app.register(errorHandlerPlugin)
-  app.register(listRoutes)
 
   app.register(authIndex)
+  app.register(postIndex)
 
   return app
 }

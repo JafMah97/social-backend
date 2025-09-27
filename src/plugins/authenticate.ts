@@ -1,5 +1,4 @@
-/* eslint-disable no-undef */
-/* eslint-disable no-unused-vars */
+// authenticate.ts
 import fp from 'fastify-plugin'
 import { type FastifyPluginAsync } from 'fastify'
 import jwt from 'jsonwebtoken'
@@ -11,36 +10,13 @@ interface JwtPayload {
   exp: number
 }
 
-interface RequestUser {
-  id: string
-  email: string
-  username: string
-  profileImage: string | null
-  fullName: string | null
-  isPrivate: boolean
-  iat: number
-  exp: number
-}
-
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: RequestUser
-  }
-  interface FastifyInstance {
-    authenticate: (req: FastifyRequest, rep: FastifyReply) => Promise<void>
-    authenticateOptional: (
-      req: FastifyRequest,
-      rep: FastifyReply,
-    ) => Promise<void>
-  }
-}
-
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_backup'
 
 const authenticate: FastifyPluginAsync = async (fastify) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  fastify.decorate('authenticate', async (req, rep) => {
-    const token = req.cookies?.token
+  fastify.decorate('authenticate', async (req) => {
+    const token =
+      req.cookies?.token || req.headers.authorization?.replace('Bearer ', '')
+
     if (!token) {
       throw fastify.httpErrors.unauthorized('Authentication token missing')
     }
@@ -64,6 +40,11 @@ const authenticate: FastifyPluginAsync = async (fastify) => {
         profileImage: true,
         fullName: true,
         isPrivate: true,
+        isProfileComplete: true,
+        emailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        isActive: true,
       },
     })
 
@@ -71,7 +52,12 @@ const authenticate: FastifyPluginAsync = async (fastify) => {
       throw fastify.httpErrors.unauthorized('User does not exist')
     }
 
-    req.user = { ...user, iat: payload.iat, exp: payload.exp }
+    // Create the user object with JWT payload
+    req.user = {
+      ...user,
+      iat: payload.iat,
+      exp: payload.exp,
+    }
 
     req.log.info(chalk.green(`Authenticated user ${user.username}`))
   })
@@ -81,6 +67,7 @@ const authenticate: FastifyPluginAsync = async (fastify) => {
       await fastify.authenticate(req, rep)
     } catch {
       // Silent fallback for guest access
+      req.user = undefined
     }
   })
 
