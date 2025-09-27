@@ -55,7 +55,8 @@ export async function postErrorHandler(
   // 2) Prisma errors
   if (err instanceof PrismaClientKnownRequestError) {
     switch (err.code) {
-      case 'P2002': { // Unique constraint
+      case 'P2002': {
+        // Unique constraint
         const target = (err.meta?.target as string[])?.join('.')
         req.log.error(
           logContext,
