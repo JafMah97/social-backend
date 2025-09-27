@@ -19,11 +19,69 @@ This project leverages a powerful and modern tech stack to provide a robust and 
 ## 📦 Project Structure
 
 ```text
-src/
-├── server.ts         # Main application entry point
-├── utils/
-│   └── cli.ts        # CLI banner and loading spinner
-└── routes/           # Directory for future API route modules
+|   server.ts
+|   
++---bootStrap
+|       app.ts
+|       keepAlive.ts
+|       logger.ts
+|       
++---modules
+|   +---auth
+|   |   |   authErrorHandler.ts
+|   |   |   authIndex.ts
+|   |   |   authSchemas.ts
+|   |   |
+|   |   \---routes
+|   |           delete.ts
+|   |           forgotPassword.ts
+|   |           login.ts
+|   |           logout.ts
+|   |           register.ts
+|   |           resendVerificationEmail.ts
+|   |           resetPassword.ts
+|   |           verifiyEmailWithLink.ts
+|   |           verifyEmailWithCode.ts
+|   |
+|   +---post
+|   |   |   postErrorHandler.ts
+|   |   |   postIndex.ts
+|   |   |   postSchemas.ts
+|   |   |
+|   |   \---routes
+|   |           create.ts
+|   |           delete.ts
+|   |           get.ts
+|   |           like.ts
+|   |           list.ts
+|   |           save.ts
+|   |           saved.ts
+|   |           unlike.ts
+|   |           unsave.ts
+|   |           update.ts
+|   |
+|   \---user
++---plugins
+|       authenticate.ts
+|       client.ts
+|       errorHandler.ts
+|       prisma.ts
+|       sensible.ts
+|       websocket.ts
+|
++---types
+|       fastify-list-routes.d.ts
+|       fastify.d.ts
+|
+\---utils
+        deleteUserAndData.ts
+        hash.ts
+        mailer.ts
+        multipartFieldsToBody.ts
+        saveMultipartImage.ts
+        seed.ts
+        uploadToImagekit.ts
+
 ```
 
 ## 🛣️ Roadmap
