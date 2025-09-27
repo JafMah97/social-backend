@@ -24,10 +24,7 @@ export const createPostSchema = z.object({
     .optional(),
 
   image: z
-    .union([
-      z.url({ message: 'Invalid image URL' }),
-      multipartFileSchema,
-    ])
+    .union([z.url({ message: 'Invalid image URL' }), multipartFileSchema])
     .optional()
     .nullable(),
   format: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'POLL', 'LINK']).default('TEXT'),
@@ -103,7 +100,6 @@ export const deletePostSchema = z.object({
 })
 
 export type DeletePostInput = z.infer<typeof deletePostSchema>
-
 
 // For listing saved posts
 export const listSavedPostsSchema = z.object({

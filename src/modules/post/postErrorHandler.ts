@@ -55,8 +55,8 @@ export async function postErrorHandler(
   // 2) Prisma errors
   if (err instanceof PrismaClientKnownRequestError) {
     switch (err.code) {
-      case 'P2002': // Unique constraint
-        { const target = (err.meta?.target as string[])?.join('.')
+      case 'P2002': { // Unique constraint
+        const target = (err.meta?.target as string[])?.join('.')
         req.log.error(
           logContext,
           `[Post] Prisma Unique Constraint Error: ${target}`,
@@ -68,7 +68,8 @@ export async function postErrorHandler(
             message: `Post conflict: ${target} already exists.`,
             details: [{ field: target, message: 'Already exists' }],
           },
-        }) }
+        })
+      }
       case 'P2025': // Record not found
         req.log.error(logContext, `[Post] Prisma Record Not Found`)
         return reply.status(404).send({

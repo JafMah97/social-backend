@@ -129,24 +129,27 @@ const listPostsRoute: FastifyPluginAsync = async (fastify) => {
         }),
       ])
 
+      const likesMap = new Map<string, number>()
+      for (const g of likesGroup) {
+        const count =
+          typeof g._count === 'object' &&
+          g._count !== null &&
+          '_all' in g._count
+            ? (g._count as { _all: number })._all
+            : 0
+        likesMap.set(g.postId, count)
+      }
 
-    const likesMap = new Map<string, number>()
-    for (const g of likesGroup) {
-      const count =
-        typeof g._count === 'object' && g._count !== null && '_all' in g._count
-          ? (g._count as { _all: number })._all
-          : 0
-      likesMap.set(g.postId, count)
-    }
-
-    const commentsMap = new Map<string, number>()
-    for (const g of commentsGroup) {
-      const count =
-        typeof g._count === 'object' && g._count !== null && '_all' in g._count
-          ? (g._count as { _all: number })._all
-          : 0
-      commentsMap.set(g.postId, count)
-    }
+      const commentsMap = new Map<string, number>()
+      for (const g of commentsGroup) {
+        const count =
+          typeof g._count === 'object' &&
+          g._count !== null &&
+          '_all' in g._count
+            ? (g._count as { _all: number })._all
+            : 0
+        commentsMap.set(g.postId, count)
+      }
 
       const resultPosts = posts.map((post) => ({
         ...post,
