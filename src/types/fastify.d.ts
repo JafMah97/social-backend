@@ -3,6 +3,8 @@
 import 'fastify'
 import { PrismaClient } from '@prisma/client'
 import type { FastifyReplyType } from 'fastify/types/type-provider'
+// types/fastify.d.ts
+import '@fastify/multipart'
 
 // Define the complete user type based on your Prisma schema
 interface RequestUser {
@@ -24,6 +26,7 @@ interface RequestUser {
 declare module 'fastify' {
   interface FastifyInstance {
     prisma: PrismaClient
+    multipart
     authenticate: (req: FastifyRequest, rep: FastifyReplyType) => Promise<void>
     authenticateOptional: (
       req: FastifyRequest,
@@ -33,6 +36,7 @@ declare module 'fastify' {
 
   interface FastifyRequest {
     user?: RequestUser | undefined
+    userId?: string
   }
 }
 

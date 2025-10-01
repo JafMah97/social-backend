@@ -15,6 +15,7 @@ import errorHandlerPlugin from '../plugins/errorHandler'
 
 import authIndex from '../modules/auth/authIndex'
 import postIndex from '../modules/post/postIndex'
+import userIndex from '../modules/user/userIndex'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -62,6 +63,7 @@ export async function buildApp() {
 
   app.register(authIndex)
   app.register(postIndex)
+  app.register(userIndex)
 
   return app
 }
