@@ -169,7 +169,6 @@ const verifyEmailRoute: FastifyPluginAsync = async (fastify) => {
             })
           }
 
- 
           const userByCode = await fastify.prisma.user.findFirst({
             where: {
               verificationCode: code,

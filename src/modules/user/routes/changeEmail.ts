@@ -11,7 +11,6 @@ import { sendVerificationCode } from '../../../utils/mailer'
 import type { Prisma } from '@prisma/client'
 import crypto from 'crypto'
 
-
 type ChangeEmailInput = z.infer<typeof changeEmailSchema>
 
 interface AuthenticatedRequest extends FastifyRequest {

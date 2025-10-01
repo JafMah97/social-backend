@@ -6,8 +6,6 @@ import type { FastifyReplyType } from 'fastify/types/type-provider'
 // types/fastify.d.ts
 import '@fastify/multipart'
 
-
-
 // Define the complete user type based on your Prisma schema
 interface RequestUser {
   id: string
@@ -38,7 +36,7 @@ declare module 'fastify' {
 
   interface FastifyRequest {
     user?: RequestUser | undefined
-    userId?:string
+    userId?: string
   }
 }
 
