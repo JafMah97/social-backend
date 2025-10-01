@@ -21,9 +21,19 @@ model User {
   updatedAt                   DateTime            @updatedAt
   isActive                    Boolean             @default(true)
   isBanned                    Boolean             @default(false)
+
+  bio                         String?
+  website                     String?
+  location                    String?
+  dateOfBirth                 DateTime?
+  gender                      String?
+
   banReason                   String?
   lastLoginAt                 DateTime?
   lastIp                      String?
+  phoneNumber                 String?
+  deletedAt                   DateTime?
+
   emailVerified               Boolean             @default(false)
   codeExpiresAt               DateTime?
   emailVerificationToken      String?
@@ -31,23 +41,31 @@ model User {
   verificationCode            String?
   resetPasswordToken          String?
   resetPasswordTokenExpiresAt DateTime?
+
+  // Relations
   Comment                     Comment[]
   CommentAuthorInfo           CommentAuthorInfo[]
   CommentLike                 CommentLike[]
+
   blockedConversations        Conversation[]      @relation("BlockedByUser")
   conversationsAsUser1        Conversation[]      @relation("User1Conversations")
   conversationsAsUser2        Conversation[]      @relation("User2Conversations")
+
   followers                   Follow[]            @relation("Followers")
   following                   Follow[]            @relation("Following")
   receivedFollowRequests      FollowRequest[]     @relation("ReceivedRequests")
   sentFollowRequests          FollowRequest[]     @relation("SentRequests")
+
   Like                        Like[]
+  PostLike                    PostLike[]
+
   receivedMessages            Message[]           @relation("RecipientMessages")
   sentMessages                Message[]           @relation("SenderMessages")
+
   notificationsSent           Notification[]      @relation("Actor")
   notificationsReceived       Notification[]      @relation("Recipient")
+
   Post                        Post[]
-  PostLike                    PostLike[]
   Reporter                    Report[]            @relation("Reporter")
   SavedPost                   SavedPost[]
   sessions                    Session[]
@@ -57,13 +75,53 @@ model User {
   StoryView                   StoryView[]
   UserActivityLog             UserActivityLog[]
   UserMedia                   UserMedia[]
+
   role                        UserRole?
-  UserSettings                UserSettings?
+  userSettings                UserSettings?
+  userPreferences             UserPreferences?
   verifications               VerificationToken[]
 
   @@index([username])
   @@index([email])
   @@index([fullName])
+}
+
+model UserPreferences {
+  id                      String    @id @default(cuid())
+  userId                  String    @unique
+  language                Language  @default(EN)
+  themeMode               ThemeMode @default(SYSTEM)
+  timezone                String?
+  locale                  String?
+  showSensitiveContent    Boolean   @default(false)
+  defaultPostVisibility   String?
+  itemsPerPage            Int       @default(10)
+  layout                  String    @default("comfortable")
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserSettings {
+  id                 String              @id @default(cuid())
+  userId             String              @unique
+  emailNotifications Boolean             @default(true)
+  pushNotifications  Boolean             @default(true)
+  storyViewPrivacy   StoryPrivacySetting @default(EVERYONE)
+  allowDirectMessages String             @default("EVERYONE") // EVERYONE, FOLLOWERS_ONLY, NO_ONE
+  showOnlineStatus   Boolean             @default(true)
+  showReadReceipts   Boolean             @default(true)
+  allowTagging       Boolean             @default(true)
+  allowSharing       Boolean             @default(true)
+  contentVisibility  String              @default("PUBLIC") // PUBLIC, FOLLOWERS_ONLY, PRIVATE
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model UserRole {
@@ -72,24 +130,6 @@ model UserRole {
   role       Role     @default(USER)
   assignedAt DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model UserSettings {
-  id                 String              @id @default(cuid())
-  userId             String              @unique
-  darkMode           Boolean             @default(false)
-  language           String              @default("en")
-  layout             String              @default("comfortable")
-  emailNotifications Boolean             @default(true)
-  pushNotifications  Boolean             @default(true)
-  storyViewPrivacy   StoryPrivacySetting @default(EVERYONE)
-  isPrivateProfile   Boolean             @default(false)
-  showActivityStatus Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -563,6 +603,26 @@ model StoryLike {
   @@index([storyId])
   @@index([userId])
   @@index([likedAt])
+}
+
+// Enums
+enum Language { 
+  EN
+  AR
+  FR
+  ES
+  DE
+  PT
+  RU
+  ZH
+  JA
+  KO
+}
+
+enum ThemeMode {
+  LIGHT
+  DARK
+  SYSTEM
 }
 
 enum Role {

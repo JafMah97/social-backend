@@ -1,3 +1,4 @@
+//src\utils\deleteUserAndData.ts
 // This utility function is responsible for permanently and safely deleting a user
 // and all their associated data from the database.
 // It is critical for maintaining data integrity and complying with privacy regulations.

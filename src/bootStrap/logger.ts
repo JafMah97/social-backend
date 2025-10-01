@@ -8,6 +8,11 @@ export function logRoutes(app: FastifyInstance) {
   const routes: string[] = raw.split('\n').filter((r) => r.trim() !== '')
   app.log.info(chalk.cyan(`Total Routes: ${routes.length}`))
 
+  // // log each route line individually for easier scanning in logs
+  // for (const line of routes) {
+  //   app.log.info(line.trim())
+  // }
+
   const routeGroups: Record<string, string[]> = {}
   for (const route of routes) {
     const match = route.match(/(\/\w+)/)
