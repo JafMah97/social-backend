@@ -74,7 +74,7 @@ export const listPostsSchema = z.object({
       message: 'Limit must be between 1 and 50',
     }),
 
-  authorId: z.string().cuid('Invalid author ID').optional(),
+  authorId: z.cuid('Invalid author ID').optional(),
   format: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'POLL', 'LINK']).optional(),
 })
 
