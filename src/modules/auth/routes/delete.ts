@@ -5,9 +5,9 @@ import {
 } from 'fastify'
 import bcrypt from 'bcrypt'
 import { z } from 'zod'
-import { prisma } from '../../../plugins/client'
-import { authErrorHandler } from '../authErrorHandler'
-import { deleteUserAndData } from '../../../utils/deleteUserAndData'
+import { prisma } from '../../../plugins/client.js'
+import { authErrorHandler } from '../authErrorHandler.js'
+import { deleteUserAndData } from '../../../utils/deleteUserAndData.js'
 
 const deleteAccountSchema = z.object({
   password: z.string().min(1, { message: 'Password is required' }),

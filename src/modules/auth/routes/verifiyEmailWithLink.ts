@@ -7,9 +7,9 @@ import jwt from 'jsonwebtoken'
 import {
   verifyEmailWithLinkSchema,
   type VerifyEmailWithLinkInput,
-} from '../authSchemas'
-import { authErrorHandler } from '../authErrorHandler'
-import { prisma } from '../../../plugins/client'
+} from '../authSchemas.js'
+import { authErrorHandler } from '../authErrorHandler.js'
+import { prisma } from '../../../plugins/client.js'
 import type { User } from '@prisma/client'
 import type { Prisma } from '@prisma/client'
 

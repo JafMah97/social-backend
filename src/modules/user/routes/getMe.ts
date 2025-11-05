@@ -3,7 +3,7 @@ import {
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { userErrorHandler } from '../userErrorHandler'
+import { userErrorHandler } from '../userErrorHandler.js'
 
 interface AuthenticatedRequest extends FastifyRequest {
   user: NonNullable<FastifyRequest['user']>

@@ -3,11 +3,11 @@ import {
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { userErrorHandler } from '../userErrorHandler'
+import { userErrorHandler } from '../userErrorHandler.js'
 import type { Prisma, ActivityType } from '@prisma/client'
-import { multipartFieldsToBody } from '../../../utils/multipartFieldsToBody'
-import { saveMultipartImage } from '../../../utils/saveMultipartImage'
-import { uploadToImageKit } from '../../../utils/uploadToImagekit'
+import { multipartFieldsToBody } from '../../../utils/multipartFieldsToBody.js'
+import { saveMultipartImage } from '../../../utils/saveMultipartImage.js'
+import { uploadToImageKit } from '../../../utils/uploadToImagekit.js'
 import { promises as fsPromises } from 'fs'
 
 interface AuthenticatedRequest extends FastifyRequest {

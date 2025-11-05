@@ -5,8 +5,8 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { likePostSchema } from '../postSchemas'
-import { postErrorHandler } from '../postErrorHandler'
+import { likePostSchema } from '../postSchemas.js'
+import { postErrorHandler } from '../postErrorHandler.js'
 import type { Prisma } from '@prisma/client'
 
 type LikePostInput = z.infer<typeof likePostSchema>
