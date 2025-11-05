@@ -8,7 +8,7 @@ import likePostRoute from './routes/like'
 import savePostRoute from './routes/save'
 import unlikePostRoute from './routes/unlike'
 import unsavePostRoute from './routes/unsave'
-import getSavedPostsRoute from './routes/saved.ts'
+import getSavedPostsRoute from './routes/saved'
 
 const postIndex: FastifyPluginAsync = async (fastify) => {
   fastify.register(createPostRoute, { prefix: '/posts' })
