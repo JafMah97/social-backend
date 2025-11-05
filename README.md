@@ -20,12 +20,12 @@ This project leverages a powerful and modern tech stack to provide a robust and 
 
 ```text
 |   server.ts
-|   
+|
 +---bootStrap
 |       app.ts
 |       keepAlive.ts
 |       logger.ts
-|       
+|
 +---modules
 |   +---auth
 |   |   |   authErrorHandler.ts

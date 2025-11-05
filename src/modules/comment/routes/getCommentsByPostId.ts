@@ -140,7 +140,7 @@ const getCommentsByPostIdRoute: FastifyPluginAsync = async (fastify) => {
           },
         })
       } catch (err) {
-        return commentErrorHandler(authenticatedRequest, reply, err,context)
+        return commentErrorHandler(authenticatedRequest, reply, err, context)
       }
     },
   )
