@@ -4,8 +4,8 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { unlikeCommentSchema } from '../commentSchemas'
-import { commentErrorHandler } from '../commentErrorHandler'
+import { unlikeCommentSchema } from '../commentSchemas.js'
+import { commentErrorHandler } from '../commentErrorHandler.js'
 import type { Prisma } from '@prisma/client'
 
 interface AuthenticatedRequest extends FastifyRequest {

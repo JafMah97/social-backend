@@ -4,9 +4,9 @@ import {
   type FastifyReply,
 } from 'fastify'
 import bcrypt from 'bcrypt'
-import { prisma } from '../../../plugins/client'
-import { authErrorHandler } from '../authErrorHandler'
-import { resetPasswordSchema, type ResetPasswordInput } from '../authSchemas'
+import { prisma } from '../../../plugins/client.js'
+import { authErrorHandler } from '../authErrorHandler.js'
+import { resetPasswordSchema, type ResetPasswordInput } from '../authSchemas.js'
 
 const resetPasswordRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post(

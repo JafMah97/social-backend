@@ -3,8 +3,8 @@ import {
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { authErrorHandler } from '../authErrorHandler'
-import { prisma } from '../../../plugins/client'
+import { authErrorHandler } from '../authErrorHandler.js'
+import { prisma } from '../../../plugins/client.js'
 
 const logoutRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post('/logout', async (req: FastifyRequest, reply: FastifyReply) => {

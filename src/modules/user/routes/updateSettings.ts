@@ -3,8 +3,8 @@ import {
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { userSettingsSchema } from '../userSchemas'
-import { userErrorHandler } from '../userErrorHandler'
+import { userSettingsSchema } from '../userSchemas.js'
+import { userErrorHandler } from '../userErrorHandler.js'
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 

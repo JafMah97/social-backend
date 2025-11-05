@@ -2,9 +2,9 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import { buildApp } from './bootStrap/app'
-import { logRoutes } from './bootStrap/logger'
-import { startKeepAlive } from './bootStrap/keepAlive'
+import { buildApp } from './bootstrap/app.js'
+import { logRoutes } from './bootstrap/logger.js'
+import { startKeepAlive } from './bootstrap/keepAlive.js'
 
 const start = async () => {
   const app = await buildApp()
