@@ -1,15 +1,17 @@
-// eslint.config.js
 import js from '@eslint/js'
 import parser from '@typescript-eslint/parser'
 import plugin from '@typescript-eslint/eslint-plugin'
+import path from 'path'
 
 export default [
   {
+    ignores: ['dist/**'],
     files: ['**/*.ts'],
     languageOptions: {
       parser,
       parserOptions: {
         project: './tsconfig.json',
+        tsconfigRootDir: path.resolve(), // ✅ Fixes path resolution
         sourceType: 'module',
       },
       globals: {
@@ -24,9 +26,12 @@ export default [
       ...plugin.configs.recommended.rules,
       'no-console': 'off',
       'no-unused-vars': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn', // ✅ Add missing rule
     },
   },
   {
+    ignores: ['dist/**'],
+    files: ['**/*.js'],
     plugins: {
       js,
     },
