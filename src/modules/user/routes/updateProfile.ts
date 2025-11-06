@@ -3,8 +3,8 @@ import {
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { updateProfileSchema } from '../userSchemas.js'
-import { userErrorHandler } from '../userErrorHandler.js'
+import { updateProfileSchema } from '../userSchemas'
+import { userErrorHandler } from '../userErrorHandler'
 import { z } from 'zod'
 import type { Prisma, ActivityType } from '@prisma/client'
 

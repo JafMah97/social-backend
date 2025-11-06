@@ -10,8 +10,8 @@ export default [
     languageOptions: {
       parser,
       parserOptions: {
-        project: './tsconfig.json',
-        tsconfigRootDir: path.resolve(), // ✅ Fixes path resolution
+        project: './tsconfig.lint.json',
+        tsconfigRootDir: path.resolve(),
         sourceType: 'module',
       },
       globals: {

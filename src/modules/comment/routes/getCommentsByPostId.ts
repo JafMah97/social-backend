@@ -4,8 +4,8 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { getCommentsByPostIdSchema } from '../commentSchemas.js'
-import { commentErrorHandler } from '../commentErrorHandler.js'
+import { getCommentsByPostIdSchema } from '../commentSchemas'
+import { commentErrorHandler } from '../commentErrorHandler'
 
 interface AuthenticatedRequest extends FastifyRequest {
   user?: NonNullable<FastifyRequest['user']>

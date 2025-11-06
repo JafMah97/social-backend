@@ -3,12 +3,12 @@ import {
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { registerSchema } from '../authSchemas.js'
-import { authErrorHandler } from '../authErrorHandler.js'
-import { hashPassword } from '../../../utils/hash.js'
-import { sendVerificationCode } from '../../../utils/mailer.js'
+import { registerSchema } from '../authSchemas'
+import { authErrorHandler } from '../authErrorHandler'
+import { hashPassword } from '../../../utils/hash'
+import { sendVerificationCode } from '../../../utils/mailer'
 import crypto from 'crypto'
-import { prisma } from '../../../plugins/client.js'
+import { prisma } from '../../../plugins/client'
 import { z } from 'zod'
 
 type RegisterInput = z.infer<typeof registerSchema>

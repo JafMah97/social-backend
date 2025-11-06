@@ -4,9 +4,9 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { changePasswordSchema } from '../userSchemas.js'
-import { userErrorHandler } from '../userErrorHandler.js'
-import { comparePassword, hashPassword } from '../../../utils/hash.js'
+import { changePasswordSchema } from '../userSchemas'
+import { userErrorHandler } from '../userErrorHandler'
+import { comparePassword, hashPassword } from '../../../utils/hash'
 import type { Prisma, ActivityType } from '@prisma/client'
 
 type ChangePasswordInput = z.infer<typeof changePasswordSchema>

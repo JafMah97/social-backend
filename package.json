@@ -5,10 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsup",
     "start": "node dist/server.js",
-    "prepare": "husky",
-    "seed": "node --loader ts-node/esm src/utils/seed.ts"
+    "seed": "node dist/utils/seed.js"
   },
   "lint-staged": {
     "*.ts": "eslint --fix"
@@ -31,6 +30,7 @@
     "lint-staged": "^16.2.6",
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   },

@@ -1,10 +1,10 @@
 import { type FastifyPluginAsync } from 'fastify'
-import createCommentRoute from './routes/create.js'
-import deleteCommentRoute from './routes/delete.js'
-import editCommentRoute from './routes/edit.js'
-import getCommentsByPostIdRoute from './routes/getCommentsByPostId.js'
-import likeCommentRoute from './routes/like.js'
-import unlikeCommentRoute from './routes/unlike.js'
+import createCommentRoute from './routes/create'
+import deleteCommentRoute from './routes/delete'
+import editCommentRoute from './routes/edit'
+import getCommentsByPostIdRoute from './routes/getCommentsByPostId'
+import likeCommentRoute from './routes/like'
+import unlikeCommentRoute from './routes/unlike'
 
 const commentIndex: FastifyPluginAsync = async (fastify) => {
   fastify.register(createCommentRoute, { prefix: '/comments' })
