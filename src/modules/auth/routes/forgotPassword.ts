@@ -4,13 +4,10 @@ import {
   type FastifyReply,
 } from 'fastify'
 import crypto from 'crypto'
-import { prisma } from '../../../plugins/client.js'
-import { sendPasswordResetLink } from '../../../utils/mailer.js'
-import { authErrorHandler } from '../authErrorHandler.js'
-import {
-  forgotPasswordSchema,
-  type ForgotPasswordInput,
-} from '../authSchemas.js'
+import { prisma } from '../../../plugins/client'
+import { sendPasswordResetLink } from '../../../utils/mailer'
+import { authErrorHandler } from '../authErrorHandler'
+import { forgotPasswordSchema, type ForgotPasswordInput } from '../authSchemas'
 
 const forgotPasswordRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post(

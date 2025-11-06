@@ -4,13 +4,13 @@ import {
   type FastifyReply,
 } from 'fastify'
 import crypto from 'crypto'
-import { prisma } from '../../../plugins/client.js'
-import { sendVerificationCode } from '../../../utils/mailer.js'
-import { authErrorHandler } from '../authErrorHandler.js'
+import { prisma } from '../../../plugins/client'
+import { sendVerificationCode } from '../../../utils/mailer'
+import { authErrorHandler } from '../authErrorHandler'
 import {
   resendVerificationSchema,
   type ResendVerificationInput,
-} from '../authSchemas.js'
+} from '../authSchemas'
 
 const resendVerificationEmailRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post(

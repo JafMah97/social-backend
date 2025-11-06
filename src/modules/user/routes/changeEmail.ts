@@ -4,10 +4,10 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { changeEmailSchema } from '../userSchemas.js'
-import { userErrorHandler } from '../userErrorHandler.js'
-import { comparePassword } from '../../../utils/hash.js'
-import { sendVerificationCode } from '../../../utils/mailer.js'
+import { changeEmailSchema } from '../userSchemas'
+import { userErrorHandler } from '../userErrorHandler'
+import { comparePassword } from '../../../utils/hash'
+import { sendVerificationCode } from '../../../utils/mailer'
 import type { Prisma } from '@prisma/client'
 import crypto from 'crypto'
 

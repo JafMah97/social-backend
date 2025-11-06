@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "node16",
-    "moduleResolution": "node16",
-    "rootDir": "src",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
     "outDir": "dist",
+    "rootDir": "src",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
     "types": ["node"],
-    "lib": ["ES2020"],
+    "lib": ["ES2022"],
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
@@ -17,6 +20,7 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
+  "exclude": ["tsup.config.ts"],
   "ts-node": {
     "compilerOptions": {
       "module": "ESNext"

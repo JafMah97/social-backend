@@ -4,7 +4,7 @@ import {
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { userErrorHandler } from '../userErrorHandler.js'
+import { userErrorHandler } from '../userErrorHandler'
 
 interface AuthenticatedRequest extends FastifyRequest {
   userId?: string

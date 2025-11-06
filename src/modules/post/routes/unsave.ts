@@ -4,8 +4,8 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { savePostSchema } from '../postSchemas.js'
-import { postErrorHandler } from '../postErrorHandler.js'
+import { savePostSchema } from '../postSchemas'
+import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
 
 type SavePostInput = z.infer<typeof savePostSchema>

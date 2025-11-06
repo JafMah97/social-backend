@@ -4,8 +4,8 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { completeProfileSchema } from '../userSchemas.js'
-import { userErrorHandler } from '../userErrorHandler.js'
+import { completeProfileSchema } from '../userSchemas'
+import { userErrorHandler } from '../userErrorHandler'
 import type { Prisma, ActivityType } from '@prisma/client'
 
 type CompleteProfileInput = z.infer<typeof completeProfileSchema>

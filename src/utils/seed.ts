@@ -1,8 +1,8 @@
 //D:\projects\backend\newSocialBackEnd\src\utils\seed.ts
 import chalk from 'chalk'
 import boxen from 'boxen'
-import { prisma } from '../plugins/client.js'
-import { hashPassword } from './hash.js'
+import { prisma } from '../plugins/client'
+import { hashPassword } from './hash'
 
 async function main() {
   const email = 'testuser@example.com'

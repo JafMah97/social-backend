@@ -7,16 +7,16 @@ import fastifyStatic from '@fastify/static'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import prismaPlugin from '../plugins/prisma.js'
-import sensiblePlugin from '../plugins/sensible.js'
-import authenticatePlugin from '../plugins/authenticate.js'
-import socketPlugin from '../plugins/websocket.js'
-import errorHandlerPlugin from '../plugins/errorHandler.js'
+import prismaPlugin from '../plugins/prisma'
+import sensiblePlugin from '../plugins/sensible'
+import authenticatePlugin from '../plugins/authenticate'
+import socketPlugin from '../plugins/websocket'
+import errorHandlerPlugin from '../plugins/errorHandler'
 
-import authIndex from '../modules/auth/authIndex.js'
-import postIndex from '../modules/post/postIndex.js'
-import userIndex from '../modules/user/userIndex.js'
-import commentIndex from '../modules/comment/commentIndex.js'
+import authIndex from '../modules/auth/authIndex'
+import postIndex from '../modules/post/postIndex'
+import userIndex from '../modules/user/userIndex'
+import commentIndex from '../modules/comment/commentIndex'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

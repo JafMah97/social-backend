@@ -1,3 +1,2 @@
 #!/bin/sh
 npx prettier --write .
-npx lint-staged

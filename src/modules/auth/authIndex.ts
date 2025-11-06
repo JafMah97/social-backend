@@ -1,13 +1,13 @@
 import { type FastifyPluginAsync } from 'fastify'
-import registerRoute from './routes/register.js'
+import registerRoute from './routes/register'
 
-import loginRoute from './routes/login.js'
-import logoutRoute from './routes/logout.js'
-import verifyEmailWithCode from './routes/verifyEmailWithCode.js'
-import verifyEmailWithLink from './routes/verifiyEmailWithLink.js'
-import resendVerification from './routes/resendVerificationEmail.js'
-import forgotPassword from './routes/forgotPassword.js'
-import resetPassword from './routes/resetPassword.js'
+import loginRoute from './routes/login'
+import logoutRoute from './routes/logout'
+import verifyEmailWithCode from './routes/verifyEmailWithCode'
+import verifyEmailWithLink from './routes/verifiyEmailWithLink'
+import resendVerification from './routes/resendVerificationEmail'
+import forgotPassword from './routes/forgotPassword'
+import resetPassword from './routes/resetPassword'
 
 const authIndex: FastifyPluginAsync = async (fastify) => {
   fastify.register(registerRoute, { prefix: '/auth' })

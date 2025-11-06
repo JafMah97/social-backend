@@ -7,9 +7,9 @@ import jwt from 'jsonwebtoken'
 import {
   verifyEmailWithCodeSchema,
   type VerifyEmailWithCodeInput,
-} from '../authSchemas.js'
-import { authErrorHandler } from '../authErrorHandler.js'
-import { prisma } from '../../../plugins/client.js'
+} from '../authSchemas'
+import { authErrorHandler } from '../authErrorHandler'
+import { prisma } from '../../../plugins/client'
 
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {

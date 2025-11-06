@@ -3,8 +3,8 @@ import {
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { userErrorHandler } from '../userErrorHandler.js'
-import { deleteUserAndData } from '../../../utils/deleteUserAndData.js'
+import { userErrorHandler } from '../userErrorHandler'
+import { deleteUserAndData } from '../../../utils/deleteUserAndData'
 interface AuthenticatedRequest extends FastifyRequest {
   user: NonNullable<FastifyRequest['user']>
 }

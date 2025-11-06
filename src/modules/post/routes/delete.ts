@@ -4,8 +4,8 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { deletePostSchema } from '../postSchemas.js'
-import { postErrorHandler } from '../postErrorHandler.js'
+import { deletePostSchema } from '../postSchemas'
+import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
 
 type DeletePostInput = z.infer<typeof deletePostSchema>

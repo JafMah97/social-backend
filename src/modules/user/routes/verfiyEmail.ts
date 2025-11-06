@@ -5,7 +5,7 @@ import {
 } from 'fastify'
 import { z } from 'zod'
 import type { Prisma, ActivityType } from '@prisma/client'
-import { userErrorHandler } from '../userErrorHandler.js'
+import { userErrorHandler } from '../userErrorHandler'
 
 const verifyEmailSchema = z.object({
   token: z.string().optional(),

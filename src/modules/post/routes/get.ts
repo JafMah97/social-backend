@@ -4,8 +4,8 @@ import {
   type FastifyReply,
 } from 'fastify'
 import { z } from 'zod'
-import { getPostSchema } from '../postSchemas.js'
-import { postErrorHandler } from '../postErrorHandler.js'
+import { getPostSchema } from '../postSchemas'
+import { postErrorHandler } from '../postErrorHandler'
 
 type GetPostInput = z.infer<typeof getPostSchema>
 
