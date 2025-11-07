@@ -88,8 +88,14 @@ export async function sendVerificationCode(
     `,
   }
 
-  await transporter.sendMail(mailOptions)
-  console.log(`[Email] Sent styled verification email to ${email}`)
+  await transporter.sendMail(mailOptions).catch((err) => {
+    console.log(err, '[Mailer] Gmail SMTP failed')
+    throw {
+      statusCode: 500,
+      code: 'emailDeliveryFailed',
+      message: 'Failed to send email. Please try again later.',
+    }
+  })
 }
 export async function sendPasswordResetLink(email: string, token: string) {
   const link = `${BASE_URL_FRONTEND}/auth/reset-password?token=${token}`
