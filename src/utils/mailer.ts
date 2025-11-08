@@ -7,7 +7,7 @@ dotenv.config()
 
 const BASE_URL_FRONTEND = process.env.BASE_URL_FRONTEND
 const resend = new Resend(
-  process.env.RESEND_API_KEY || 're_Za6v1HL6_BFaBrUafoSkG97jTNsFrduZq',
+  process.env.RESEND_API_KEY,
 )
 
 export async function sendVerificationCode(
