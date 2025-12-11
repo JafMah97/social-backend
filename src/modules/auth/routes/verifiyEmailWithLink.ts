@@ -195,7 +195,7 @@ function sendSuccessResponse(
   return reply
     .setCookie('token', jwtToken, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
       secure: process.env.NODE_ENV === 'production',
