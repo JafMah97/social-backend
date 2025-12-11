@@ -90,8 +90,8 @@ const loginRoute: FastifyPluginAsync = async (fastify) => {
           .setCookie('token', token, {
             httpOnly: true,
             sameSite: 'none',
-            secure:true,
-            path: '/',  
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
             maxAge: 60 * 60 * 24 * 7,
           })
           .send({ id: user.id, username: user.username })
