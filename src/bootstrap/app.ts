@@ -79,5 +79,9 @@ export async function buildApp() {
   app.register(userIndex)
   app.register(commentIndex)
 
+   app.get('/ping', async () => {
+     return { status: 'ok' }
+   })
+
   return app
 }
