@@ -41,10 +41,22 @@ export async function buildApp() {
   })
 
   await app.register(cors, {
-    origin: process.env.BASE_URL_FRONTEND || 'http://localhost:3000',
+    origin: (origin, cb) => {
+      const allowedOrigins = [
+        'http://localhost:3000', // dev frontend
+        'https://your-frontend.onrender.com', // prod frontend
+      ]
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        cb(null, true)
+      } else {
+        cb(new Error('Not allowed by CORS'), false)
+      }
+    },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     credentials: true,
   })
+
 
   app.register(sensiblePlugin)
   app.register(cookie, { secret: process.env.COOKIE_SECRET || 'dev_secret' })
