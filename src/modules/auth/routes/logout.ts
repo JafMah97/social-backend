@@ -30,7 +30,7 @@ const logoutRoute: FastifyPluginAsync = async (fastify) => {
       return reply
         .clearCookie('token', {
           path: '/',
-          sameSite: 'lax',
+          sameSite: 'none',
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
         })

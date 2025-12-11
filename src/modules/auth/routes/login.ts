@@ -91,7 +91,7 @@ const loginRoute: FastifyPluginAsync = async (fastify) => {
             httpOnly: true,
             sameSite: 'none',
             secure:true,
-            path: '/',
+            path: '/',  
             maxAge: 60 * 60 * 24 * 7,
           })
           .send({ id: user.id, username: user.username })
