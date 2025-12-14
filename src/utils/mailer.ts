@@ -1,12 +1,19 @@
 // src/utils/mailer.ts
 
-import { Resend } from 'resend'
+import { MailerSend, EmailParams, Sender, Recipient } from 'mailersend'
 import dotenv from 'dotenv'
 
 dotenv.config()
 
 const BASE_URL_FRONTEND = process.env.BASE_URL_FRONTEND
-const resend = new Resend(process.env.RESEND_API_KEY)
+
+// Initialize MailerSend client
+const mailerSend = new MailerSend({
+  apiKey: process.env.MAILERSEND_API_KEY as string,
+})
+
+// Common sender
+const sentFrom = new Sender('no-reply@konekta-social.dedyn.io', 'Konekta')
 
 export async function sendVerificationCode(
   email: string,
@@ -43,12 +50,15 @@ export async function sendVerificationCode(
     </div>
   `
 
-  await resend.emails.send({
-    from: 'no-reply@konekta-social.dedyn.io',
-    to: email,
-    subject: 'Welcome to Konekta! Verify Your Email',
-    html,
-  })
+  const recipients = [new Recipient(email, 'User')]
+
+  const emailParams = new EmailParams()
+    .setFrom(sentFrom)
+    .setTo(recipients)
+    .setSubject('Welcome to Konekta! Verify Your Email')
+    .setHtml(html)
+
+  await mailerSend.email.send(emailParams)
 }
 
 export async function sendPasswordResetLink(email: string, token: string) {
@@ -80,12 +90,15 @@ export async function sendPasswordResetLink(email: string, token: string) {
     </div>
   `
 
-  await resend.emails.send({
-    from: "no-reply@konekta-social.dedyn.io",
-    to: email,
-    subject: 'Reset Your Konekta Password',
-    html,
-  })
+  const recipients = [new Recipient(email, 'User')]
+
+  const emailParams = new EmailParams()
+    .setFrom(sentFrom)
+    .setTo(recipients)
+    .setSubject('Reset Your Konekta Password')
+    .setHtml(html)
+
+  await mailerSend.email.send(emailParams)
 
   console.log(`[Email] Sent styled password reset email to ${email}`)
 }
