@@ -7,7 +7,6 @@ dotenv.config()
 
 const BASE_URL_FRONTEND = process.env.BASE_URL_FRONTEND
 const resend = new Resend(process.env.RESEND_API_KEY)
-const EMAIL_FROM = process.env.EMAIL_FROM
 
 export async function sendVerificationCode(
   email: string,
@@ -45,7 +44,7 @@ export async function sendVerificationCode(
   `
 
   await resend.emails.send({
-    from: `${EMAIL_FROM}`,
+    from: 'no-reply@konekta-social.dedyn.io',
     to: email,
     subject: 'Welcome to Konekta! Verify Your Email',
     html,
@@ -82,7 +81,7 @@ export async function sendPasswordResetLink(email: string, token: string) {
   `
 
   await resend.emails.send({
-    from: `${EMAIL_FROM}`,
+    from: "no-reply@konekta-social.dedyn.io",
     to: email,
     subject: 'Reset Your Konekta Password',
     html,
