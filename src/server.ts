@@ -17,20 +17,6 @@ const start = async () => {
     await app.prisma.$queryRaw`SELECT 1`
     app.log.info('✅ Initial Neon ping sent')
 
-    app.addHook('onRequest', async (request) => {
-      app.log.info(
-        {
-          method: request.method,
-          url: request.url,
-          host: request.headers.host,
-          x_forwarded_proto: request.headers['x-forwarded-proto'],
-          origin: request.headers.origin,
-        },
-        'Incoming request',
-      )
-    })
-
-
     logRoutes(app)
     startKeepAlive(app)
 
