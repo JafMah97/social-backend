@@ -20,11 +20,10 @@ const start = async () => {
     logRoutes(app)
     startKeepAlive(app)
 
-    const PORT = Number(process.env.PORT) || 3000
+    const PORT = Number(process.env.PORT)
     await app.listen({ port: PORT, host: '0.0.0.0' })
 
-
-    const NODE_ENV = process.env.NODE_ENV 
+    const NODE_ENV = process.env.NODE_ENV
     const baseUrl =
       NODE_ENV === 'production'
         ? `https://${process.env.RAILWAY_STATIC_URL}`
