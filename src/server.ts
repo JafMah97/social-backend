@@ -17,17 +17,27 @@ const start = async () => {
     await app.prisma.$queryRaw`SELECT 1`
     app.log.info('✅ Initial Neon ping sent')
 
+    app.addHook('onRequest', async (request) => {
+      app.log.info(
+        {
+          method: request.method,
+          url: request.url,
+          host: request.headers.host,
+          x_forwarded_proto: request.headers['x-forwarded-proto'],
+          origin: request.headers.origin,
+        },
+        'Incoming request',
+      )
+    })
+
+
     logRoutes(app)
     startKeepAlive(app)
 
-    // Railway provides PORT automatically
-    const PORT = Number(process.env.PORT)
-    // Always bind to 0.0.0.0 so Railway can route traffic
-    const HOST = '0.0.0.0'
+    const PORT = Number(process.env.PORT) || 3000
+    await app.listen({ port: PORT, host: '0.0.0.0' })
 
-    await app.listen({ port: PORT, host: HOST })
 
-    // Log the correct URL depending on environment
     const NODE_ENV = process.env.NODE_ENV 
     const baseUrl =
       NODE_ENV === 'production'
