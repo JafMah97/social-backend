@@ -13,9 +13,16 @@ declare module 'fastify' {
 }
 
 export default fp(async (fastify: FastifyInstance) => {
+  // Decide which origin to allow based on NODE_ENV
+  const NODE_ENV = process.env.NODE_ENV || 'development'
+  const allowedOrigin =
+    NODE_ENV === 'production'
+      ? process.env.PROD_ORIGIN
+      : process.env.DEV_ORIGIN || 'http://localhost:3000'
+
   const io = new Server(fastify.server, {
     cors: {
-      origin: process.env.BASE_URL_FRONTEND || 'http://localhost:3000',
+      origin: allowedOrigin,
       methods: ['GET', 'POST'],
     },
   })

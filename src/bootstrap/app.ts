@@ -24,29 +24,27 @@ const __dirname = path.dirname(__filename)
 export async function buildApp() {
   const app = Fastify({
     pluginTimeout: 60000,
-    logger:
-      process.env.NODE_ENV === 'development'
-        ? {
-            transport: {
-              target: 'pino-pretty',
-              options: {
-                colorize: true,
-                levelFirst: true,
-                translateTime: 'HH:MM:ss',
-                ignore: 'pid,hostname',
-              },
-            },
-          }
-        : true,
+    logger: {
+      transport: {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          levelFirst: true,
+          translateTime: 'HH:MM:ss',
+          ignore: 'pid,hostname',
+        },
+      },
+    },
   })
+
+  // Read allowed origins from environment variables
+  const devOrigin = process.env.DEV_ORIGIN
+  const prodOrigin =
+    process.env.PROD_ORIGIN
+  const allowedOrigins = [devOrigin, prodOrigin]
 
   await app.register(cors, {
     origin: (origin, cb) => {
-      const allowedOrigins = [
-        'http://localhost:3000', // dev frontend
-        'https://your-frontend.onrender.com', // prod frontend
-      ]
-
       if (!origin || allowedOrigins.includes(origin)) {
         cb(null, true)
       } else {
@@ -56,7 +54,6 @@ export async function buildApp() {
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     credentials: true,
   })
-
 
   app.register(sensiblePlugin)
   app.register(cookie, { secret: process.env.COOKIE_SECRET || 'dev_secret' })
@@ -79,9 +76,9 @@ export async function buildApp() {
   app.register(userIndex)
   app.register(commentIndex)
 
-   app.get('/ping', async () => {
-     return { status: 'ok' }
-   })
+  app.get('/ping', async () => {
+    return { status: 'ok' }
+  })
 
   return app
 }
