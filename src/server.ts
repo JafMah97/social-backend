@@ -26,7 +26,7 @@ const start = async () => {
     const NODE_ENV = process.env.NODE_ENV
     const baseUrl =
       NODE_ENV === 'production'
-        ? `https://${process.env.RAILWAY_STATIC_URL}`
+        ? `https://${process.env.RAILWAY_STATIC_URL} https://${process.env.RENDER_STATIC_URL} `
         : `http://localhost:${PORT}`
 
     app.log.info(`🚀 Server running at ${baseUrl}`)

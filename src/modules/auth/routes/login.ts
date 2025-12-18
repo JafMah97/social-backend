@@ -86,13 +86,16 @@ const loginRoute: FastifyPluginAsync = async (fastify) => {
           },
         })
 
+        // 🌍 Environment-aware cookie config
+        const isProd = process.env.NODE_ENV === 'production'
+
         return reply
           .setCookie('token', token, {
             httpOnly: true,
-            sameSite: 'none',
-            secure: process.env.NODE_ENV === 'production',
+            secure: isProd, // true in prod (Render HTTPS), false in dev (localhost HTTP)
+            sameSite: isProd ? 'none' : 'lax', // 'none' for cross-site prod, 'lax' for local dev
             path: '/',
-            maxAge: 60 * 60 * 24 * 7,
+            maxAge: 60 * 60 * 24 * 7, // 7 days
           })
           .send({ id: user.id, username: user.username })
       } catch (err) {
