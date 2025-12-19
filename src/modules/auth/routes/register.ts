@@ -121,7 +121,6 @@
 
 // export default registerRoute
 
-
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -151,7 +150,8 @@ const registerRoute: FastifyPluginAsync = async (fastify) => {
           throw result.error
         }
 
-        const { username, password, fullName }: RegisterInput = result.data
+        const { username, email, password, fullName }: RegisterInput =
+          result.data
 
         // Check username uniqueness
         const userByUsername = await prisma.user.findFirst({
@@ -167,24 +167,39 @@ const registerRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
+        // Check email uniqueness
+        const userByEmail = await prisma.user.findFirst({
+          where: { email },
+          select: { email: true },
+        })
+        if (userByEmail) {
+          throw {
+            statusCode: 409,
+            code: 'conflictError',
+            message: 'Email already registered',
+            details: [{ field: 'email', message: 'Already exists' }],
+          }
+        }
+
         const passwordHash = await hashPassword(password)
 
         const newUser = await prisma.user.create({
           data: {
             username,
+            email,
             fullName,
             passwordHash,
-            emailVerified: true, // always true now
+            emailVerified: true, // skip verification for now
             isPrivate: false,
             lastLoginAt: new Date(),
             lastIp: request.ip,
           },
-          select: { id: true, username: true },
+          select: { id: true, username: true, email: true },
         })
 
         // Issue JWT immediately
         const token = jwt.sign(
-          { id: newUser.id, username: newUser.username },
+          { id: newUser.id, username: newUser.username, email: newUser.email },
           JWT_SECRET,
           { expiresIn: '7d' },
         )
@@ -207,8 +222,8 @@ const registerRoute: FastifyPluginAsync = async (fastify) => {
         return reply
           .setCookie('token', token, {
             httpOnly: true,
-            secure: isProd, // true in prod (Render HTTPS), false in dev (localhost HTTP)
-            sameSite: isProd ? 'none' : 'lax', // 'none' for cross-site prod, 'lax' for local dev
+            secure: isProd,
+            sameSite: isProd ? 'none' : 'lax',
             path: '/',
             maxAge: 60 * 60 * 24 * 7, // 7 days
           })
@@ -217,11 +232,12 @@ const registerRoute: FastifyPluginAsync = async (fastify) => {
             message: 'User registered and logged in successfully.',
             id: newUser.id,
             username: newUser.username,
+            email: newUser.email,
           })
       } catch (err) {
         return authErrorHandler(request, reply, err, {
           action: 'register',
-          field: 'username',
+          field: 'username or email',
         })
       }
     },
