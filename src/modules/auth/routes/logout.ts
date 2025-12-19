@@ -27,12 +27,14 @@ const logoutRoute: FastifyPluginAsync = async (fastify) => {
 
       fastify.log.info('[Logout] Session deleted and token cookie cleared')
 
+      const isProd = process.env.NODE_ENV === 'production'
+
       return reply
         .clearCookie('token', {
           path: '/',
-          sameSite: 'none',
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: isProd,
+          sameSite: isProd ? 'none' : 'lax',
         })
         .send({ message: 'Logged out successfully' })
     } catch (err) {
