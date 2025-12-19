@@ -11,11 +11,11 @@ const start = async () => {
 
   try {
     await app.ready()
-    app.log.info('✅ Fastify App ready')
+    app.log.info(' Fastify App ready')
 
     // Simple DB ping
     await app.prisma.$queryRaw`SELECT 1`
-    app.log.info('✅ Initial Neon ping sent')
+    app.log.info('Initial Neon ping sent')
 
     logRoutes(app)
     startKeepAlive(app)
@@ -29,7 +29,7 @@ const start = async () => {
         ? `https://${process.env.RAILWAY_STATIC_URL} https://${process.env.RENDER_STATIC_URL} `
         : `http://localhost:${PORT}`
 
-    app.log.info(`🚀 Server running at ${baseUrl}`)
+    app.log.info(`Server running at ${baseUrl}`)
   } catch (err) {
     if (err instanceof Error) {
       app.log.error(err, '❌ Error during startup')
