@@ -5,57 +5,43 @@ import {
 } from 'fastify'
 import { userErrorHandler } from '../userErrorHandler'
 import type { Prisma, ActivityType } from '@prisma/client'
-import { saveMultipartImage } from '../../../utils/saveMultipartImage'
+import { saveUploadedFile } from '../../../utils/saveUploadedFile'
 import { uploadToImageKit } from '../../../utils/uploadToImagekit'
-import { multipartFieldsToBody } from '../../../utils/multipartFieldsToBody'
 import { promises as fsPromises } from 'fs'
 
 interface AuthenticatedRequest extends FastifyRequest {
   user: NonNullable<FastifyRequest['user']>
 }
 
-type MultipartRequestLike = FastifyRequest & {
-  isMultipart?: () => boolean
-  multipart?: unknown
-}
-
-function hasMultipartSupport(req: FastifyRequest): req is MultipartRequestLike {
-  const r = req as unknown as Record<string, unknown>
-  return (
-    typeof r.isMultipart === 'function' || typeof r.multipart === 'function'
-  )
-}
-
 const uploadCoverImageRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/profile-cover',
-    { preHandler: fastify.authenticate }, // only authenticate at compile-time
+    {
+      preHandler: fastify.authenticate,
+      config: {
+        bodyLimit: 10 * 1024 * 1024, // 10MB limit
+      },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const req = request as AuthenticatedRequest
       const userId = req.user.id
 
-      // runtime check for multipart plugin
-      if (!hasMultipartSupport(request)) {
-        return userErrorHandler(
-          request,
-          reply,
-          {
-            statusCode: 500,
-            code: 'serverError',
-            message:
-              'Server missing multipart support. Ensure @fastify/multipart is registered (app.register(require("@fastify/multipart"))).',
-          },
-          { action: 'uploadCoverImage', userId },
-        )
-      }
+      req.log.info({ userId }, 'Upload cover route hit')
 
       let localPath: string | null = null
 
       try {
-        const body = await multipartFieldsToBody(request)
+        // Use req.file() to get the uploaded file
+        req.log.info('Getting uploaded file via req.file()...')
 
-        const coverImage = body.coverImage
-        if (!coverImage || typeof coverImage === 'string') {
+        const coverImage = await req.file({
+          limits: {
+            fileSize: 5 * 1024 * 1024, // 5MB max
+          },
+        })
+
+        if (!coverImage) {
+          req.log.warn('No file uploaded')
           throw {
             statusCode: 400,
             code: 'validationError',
@@ -66,18 +52,65 @@ const uploadCoverImageRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        const saved = await saveMultipartImage(coverImage, 'covers', userId)
+        req.log.info(
+          {
+            filename: coverImage.filename,
+            mimetype: coverImage.mimetype,
+            fieldname: coverImage.fieldname,
+          },
+          'Received file',
+        )
+
+        // Validate file type
+        const mimetype = coverImage.mimetype || ''
+        if (!mimetype.startsWith('image/')) {
+          req.log.warn({ mimetype }, 'Uploaded file is not an image')
+          throw {
+            statusCode: 400,
+            code: 'validationError',
+            message: 'Uploaded file must be an image',
+            details: [
+              { field: 'coverImage', message: 'Image file is required' },
+            ],
+          }
+        }
+
+        // Save file locally
+        req.log.info('Saving file to disk...')
+        const saved = await saveUploadedFile(coverImage, 'covers', userId)
         localPath = saved.localPath
-        const fileName = saved.fileName
+        req.log.info(
+          { localPath, fileName: saved.fileName },
+          'File saved locally',
+        )
 
-        const imageUrl = await uploadToImageKit(localPath, fileName)
+        // Check file size on disk
+        try {
+          const stats = await fsPromises.stat(localPath)
+          req.log.info({ size: stats.size }, 'Local file size')
+        } catch (statErr) {
+          req.log.warn({ err: statErr }, 'Could not stat saved file')
+        }
 
+        // Upload to ImageKit
+        req.log.info('Uploading to ImageKit...')
+        const imageUrl = await uploadToImageKit(localPath, saved.fileName)
+        req.log.info({ imageUrl }, 'Uploaded to ImageKit')
+
+        // Update database
+        req.log.info('Updating user profile...')
         const result = await fastify.prisma.$transaction(async (tx) => {
+          // Get previous cover image
           const previous = await tx.user.findUnique({
             where: { id: userId },
             select: { coverImage: true },
           })
+          req.log.info(
+            { previousCover: previous?.coverImage },
+            'Previous cover image',
+          )
 
+          // Update user
           const updated = await tx.user.update({
             where: { id: userId },
             data: {
@@ -87,9 +120,11 @@ const uploadCoverImageRoute: FastifyPluginAsync = async (fastify) => {
             select: {
               coverImage: true,
               updatedAt: true,
+              username: true,
             },
           })
 
+          // Create activity log
           await tx.userActivityLog.create({
             data: {
               userId,
@@ -107,27 +142,34 @@ const uploadCoverImageRoute: FastifyPluginAsync = async (fastify) => {
         })
 
         req.log.info(
-          { userId, image: result.coverImage },
-          'Cover image updated',
+          { userId, username: result.username, imageUrl },
+          'Cover image updated successfully',
         )
 
         return reply.send({
           success: true,
           message: 'Cover image updated successfully',
-          data: { coverImage: result.coverImage },
+          data: {
+            coverImage: result.coverImage,
+            updatedAt: result.updatedAt,
+          },
         })
       } catch (err) {
+        req.log.error({ err }, 'Error in uploadCoverImageRouteV2')
+
+        // Clean up local file if it exists
         try {
           if (localPath) {
             await fsPromises.unlink(localPath)
+            req.log.info('Cleaned up local file')
           }
         } catch (cleanupErr) {
-          req.log?.warn({ err: cleanupErr }, 'Failed to cleanup uploaded file')
+          req.log.warn({ err: cleanupErr }, 'Failed to cleanup uploaded file')
         }
 
         return userErrorHandler(request, reply, err, {
           action: 'uploadCoverImage',
-          ...(req.user?.id && { userId: req.user.id }),
+          userId: req.user?.id || 'unknown',
         })
       }
     },

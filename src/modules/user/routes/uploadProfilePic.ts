@@ -5,8 +5,7 @@ import {
 } from 'fastify'
 import { userErrorHandler } from '../userErrorHandler'
 import type { Prisma, ActivityType } from '@prisma/client'
-import { multipartFieldsToBody } from '../../../utils/multipartFieldsToBody'
-import { saveMultipartImage } from '../../../utils/saveMultipartImage'
+import { saveUploadedFile } from '../../../utils/saveUploadedFile'
 import { uploadToImageKit } from '../../../utils/uploadToImagekit'
 import { promises as fsPromises } from 'fs'
 
@@ -14,43 +13,35 @@ interface AuthenticatedRequest extends FastifyRequest {
   user: NonNullable<FastifyRequest['user']>
 }
 
-function hasMultipartSupport(req: FastifyRequest) {
-  const r = req as unknown as Record<string, unknown>
-  return (
-    typeof r.isMultipart === 'function' || typeof r.multipart === 'function'
-  )
-}
-
 const uploadProfileImageRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/profile-picture',
-    { preHandler: fastify.authenticate },
+    {
+      preHandler: fastify.authenticate,
+      config: {
+        bodyLimit: 10 * 1024 * 1024, // 10MB
+      },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const req = request as AuthenticatedRequest
       const userId = req.user.id
 
-      // ensure multipart plugin is registered at runtime
-      if (!hasMultipartSupport(request)) {
-        return userErrorHandler(
-          request,
-          reply,
-          {
-            statusCode: 500,
-            code: 'serverError',
-            message:
-              'Server missing multipart support. Ensure @fastify/multipart is registered.',
-          },
-          { action: 'uploadProfilePic', userId },
-        )
-      }
+      req.log.info({ userId }, 'Upload profile picture route hit (v2)')
 
       let localPath: string | null = null
 
       try {
-        const body = await multipartFieldsToBody(request)
+        // Get uploaded file
+        req.log.info('Getting uploaded file via req.file()...')
 
-        const profileImage = body.profileImage
-        if (!profileImage || typeof profileImage === 'string') {
+        const profileImage = await req.file({
+          limits: {
+            fileSize: 5 * 1024 * 1024, // 5MB
+          },
+        })
+
+        if (!profileImage) {
+          req.log.warn('No file uploaded')
           throw {
             statusCode: 400,
             code: 'validationError',
@@ -61,12 +52,54 @@ const uploadProfileImageRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        const saved = await saveMultipartImage(profileImage, 'avatars', userId)
+        req.log.info(
+          {
+            filename: profileImage.filename,
+            mimetype: profileImage.mimetype,
+            fieldname: profileImage.fieldname,
+          },
+          'Received file',
+        )
+
+        // Validate file type
+        const mimetype = profileImage.mimetype || ''
+        if (!mimetype.startsWith('image/')) {
+          req.log.warn({ mimetype }, 'Uploaded file is not an image')
+          throw {
+            statusCode: 400,
+            code: 'validationError',
+            message: 'Uploaded file must be an image',
+            details: [
+              { field: 'profileImage', message: 'Image file is required' },
+            ],
+          }
+        }
+
+        // Save locally
+        req.log.info('Saving file to disk...')
+        const saved = await saveUploadedFile(profileImage, 'avatars', userId)
         localPath = saved.localPath
-        const fileName = saved.fileName
 
-        const imageUrl = await uploadToImageKit(localPath, fileName)
+        req.log.info(
+          { localPath, fileName: saved.fileName },
+          'File saved locally',
+        )
 
+        // Check file size
+        try {
+          const stats = await fsPromises.stat(localPath)
+          req.log.info({ size: stats.size }, 'Local file size')
+        } catch (statErr) {
+          req.log.warn({ err: statErr }, 'Could not stat saved file')
+        }
+
+        // Upload to ImageKit
+        req.log.info('Uploading to ImageKit...')
+        const imageUrl = await uploadToImageKit(localPath, saved.fileName)
+        req.log.info({ imageUrl }, 'Uploaded to ImageKit')
+
+        // Update DB
+        req.log.info('Updating user profile...')
         const result = await fastify.prisma.$transaction(async (tx) => {
           const previous = await tx.user.findUnique({
             where: { id: userId },
@@ -82,6 +115,7 @@ const uploadProfileImageRoute: FastifyPluginAsync = async (fastify) => {
             select: {
               profileImage: true,
               updatedAt: true,
+              username: true,
             },
           })
 
@@ -102,25 +136,34 @@ const uploadProfileImageRoute: FastifyPluginAsync = async (fastify) => {
         })
 
         req.log.info(
-          { userId, image: result.profileImage },
-          'Profile image updated',
+          { userId, username: result.username, imageUrl },
+          'Profile picture updated successfully',
         )
 
         return reply.send({
           success: true,
           message: 'Profile picture updated successfully',
-          data: { profileImage: result.profileImage },
+          data: {
+            profileImage: result.profileImage,
+            updatedAt: result.updatedAt,
+          },
         })
       } catch (err) {
+        req.log.error({ err }, 'Error in uploadProfileImageRouteV2')
+
+        // Cleanup
         try {
-          if (localPath) await fsPromises.unlink(localPath)
+          if (localPath) {
+            await fsPromises.unlink(localPath)
+            req.log.info('Cleaned up local file')
+          }
         } catch (cleanupErr) {
-          req.log?.warn({ err: cleanupErr }, 'Failed to cleanup uploaded file')
+          req.log.warn({ err: cleanupErr }, 'Failed to cleanup uploaded file')
         }
 
         return userErrorHandler(request, reply, err, {
           action: 'uploadProfilePic',
-          ...(req.user?.id && { userId: req.user.id }),
+          userId: req.user?.id || 'unknown',
         })
       }
     },
