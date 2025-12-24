@@ -1,3 +1,4 @@
+// src/modules/posts/routes/likePostRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -7,6 +8,7 @@ import { z } from 'zod'
 import { likePostSchema } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 type LikePostInput = z.infer<typeof likePostSchema>
 
@@ -34,6 +36,18 @@ const likePostRoute: FastifyPluginAsync = async (fastify) => {
 
         const post = await fastify.prisma.post.findFirst({
           where: { id: postId, isDeleted: false },
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                profileImage: true,
+                isPrivate: true,
+              },
+            },
+            tags: { include: { tag: true } },
+          },
         })
 
         if (!post) {
@@ -44,7 +58,7 @@ const likePostRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        const like = await fastify.prisma.$transaction(async (tx) => {
+        await fastify.prisma.$transaction(async (tx) => {
           const existing = await tx.like.findFirst({
             where: { postId, userId: authenticatedRequest.user.id },
           })
@@ -57,53 +71,64 @@ const likePostRoute: FastifyPluginAsync = async (fastify) => {
             }
           }
 
+          // clear any removed likes
           await tx.like.deleteMany({
             where: { postId, userId: authenticatedRequest.user.id },
           })
 
-          const created = await tx.like.create({
+          // create new like
+          await tx.like.create({
             data: {
               postId,
               userId: authenticatedRequest.user.id,
             },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  fullName: true,
-                  profileImage: true,
-                },
-              },
-            },
           })
 
+          // increment post likesCount
           await tx.post.update({
             where: { id: postId },
             data: { likesCount: { increment: 1 } },
           })
 
+          // log activity
           await tx.userActivityLog.create({
             data: {
               userId: authenticatedRequest.user.id,
               action: 'POST_LIKE',
-              metadata: { postId, likeId: created.id } as Prisma.InputJsonValue,
+              metadata: { postId } as Prisma.InputJsonValue,
               ipAddress: authenticatedRequest.ip,
               userAgent: authenticatedRequest.headers['user-agent'] ?? null,
             },
           })
-
-          return created
         })
 
         fastify.log.info(
           `[Post] User ${authenticatedRequest.user.id} liked post: ${postId}`,
         )
 
+        // recompute counts and flags
+        const [likesCount, commentsCount] = await fastify.prisma.$transaction([
+          fastify.prisma.like.count({
+            where: { postId: post.id, isRemoved: false },
+          }),
+          fastify.prisma.comment.count({
+            where: { postId: post.id, isDeleted: false },
+          }),
+        ])
+
+        const dto: PostDTO = toPostDTO(post, {
+          isLiked: true,
+          isSaved: false,
+          tags: post.tags.map((t) => t.tag.name),
+        })
+        dto.likesCount = likesCount
+        dto.commentsCount = commentsCount
+        dto.viewsCount = post.viewsCount
+
         return reply.send({
           success: true,
           message: 'Post liked successfully.',
-          data: { like },
+          data: { post: dto },
         })
       } catch (err) {
         return postErrorHandler(authenticatedRequest, reply, err, {

@@ -1,3 +1,4 @@
+// src/modules/posts/routes/savePostRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -7,6 +8,7 @@ import { z } from 'zod'
 import { savePostSchema } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 type SavePostInput = z.infer<typeof savePostSchema>
 
@@ -20,7 +22,6 @@ interface AuthenticatedRequest extends FastifyRequest {
 }
 
 const MAX_STR_LEN = 255
-
 const truncate = (s: string | undefined | null) =>
   s == null ? '' : s.slice(0, MAX_STR_LEN)
 
@@ -41,8 +42,15 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
           where: { id: postId },
           include: {
             author: {
-              select: { username: true, fullName: true, profileImage: true },
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                profileImage: true,
+                isPrivate: true,
+              },
             },
+            tags: { include: { tag: true } },
           },
         })
 
@@ -62,14 +70,13 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
         )
 
         // Transaction: check existing -> create or reactivate -> log
-        const txResult = await fastify.prisma.$transaction(async (tx) => {
+        await fastify.prisma.$transaction(async (tx) => {
           const existing = await tx.savedPost.findFirst({
             where: { postId, userId },
             select: { id: true, isRemoved: true },
           })
 
           if (existing && !existing.isRemoved) {
-            // already active
             throw {
               statusCode: 409,
               code: 'alreadySaved',
@@ -77,10 +84,8 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
             }
           }
 
-          let saved
           if (existing && existing.isRemoved) {
-            // reactivate soft-removed save
-            saved = await tx.savedPost.update({
+            await tx.savedPost.update({
               where: { id: existing.id },
               data: {
                 isRemoved: false,
@@ -89,44 +94,15 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
                 postImage,
                 postAuthor,
               },
-              include: {
-                post: {
-                  include: {
-                    author: {
-                      select: {
-                        id: true,
-                        username: true,
-                        fullName: true,
-                        profileImage: true,
-                      },
-                    },
-                  },
-                },
-              },
             })
           } else {
-            // create new savedPost
-            saved = await tx.savedPost.create({
+            await tx.savedPost.create({
               data: {
                 postId,
                 userId,
                 postTitle,
                 postImage,
                 postAuthor,
-              },
-              include: {
-                post: {
-                  include: {
-                    author: {
-                      select: {
-                        id: true,
-                        username: true,
-                        fullName: true,
-                        profileImage: true,
-                      },
-                    },
-                  },
-                },
               },
             })
           }
@@ -140,17 +116,39 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
               userAgent: authenticatedRequest.headers['user-agent'] ?? null,
             },
           })
-
-          return saved
         })
 
         fastify.log.info(`[Post] User ${userId} saved post: ${postId}`)
 
-        const status = txResult ? 201 : 200
-        return reply.status(status).send({
+        // recompute flags and counts for DTO
+        const [likesCount, commentsCount] = await fastify.prisma.$transaction([
+          fastify.prisma.like.count({
+            where: { postId: post.id, isRemoved: false },
+          }),
+          fastify.prisma.comment.count({
+            where: { postId: post.id, isDeleted: false },
+          }),
+        ])
+
+        const isLiked = !!(await fastify.prisma.postLike.findFirst({
+          where: { postId: post.id, userId, isRemoved: false },
+        }))
+
+        const isSaved = true // just saved
+
+        const dto: PostDTO = toPostDTO(post, {
+          isLiked,
+          isSaved,
+          tags: post.tags.map((t) => t.tag.name),
+        })
+        dto.likesCount = likesCount
+        dto.commentsCount = commentsCount
+        dto.viewsCount = post.viewsCount
+
+        return reply.status(201).send({
           success: true,
           message: 'Post saved successfully.',
-          data: { savedPost: txResult },
+          data: { post: dto },
         })
       } catch (err) {
         return postErrorHandler(authenticatedRequest, reply, err, {

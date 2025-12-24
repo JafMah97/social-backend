@@ -1,3 +1,4 @@
+// src/modules/posts/routes/getPostRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -6,6 +7,7 @@ import {
 import { z } from 'zod'
 import { getPostSchema } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 type GetPostInput = z.infer<typeof getPostSchema>
 
@@ -30,14 +32,9 @@ const getPostRoute: FastifyPluginAsync = async (fastify) => {
         if (!result.success) throw result.error
         const { postId }: GetPostInput = result.data
 
-        // Build visibility filter explicitly
-        const where = { id: postId, isDeleted: false }
-
-        // Fetch post with related slices (tags, author, recent likes)
         const post = await fastify.prisma.post.findFirst({
-          where,
+          where: { id: postId, isDeleted: false },
           include: {
-            tags: { include: { tag: true } },
             author: {
               select: {
                 id: true,
@@ -47,20 +44,7 @@ const getPostRoute: FastifyPluginAsync = async (fastify) => {
                 isPrivate: true,
               },
             },
-            PostLikes: {
-              where: { isRemoved: false },
-              take: 10,
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    profileImage: true,
-                  },
-                },
-              },
-            },
+            tags: { include: { tag: true } },
           },
         })
 
@@ -72,7 +56,6 @@ const getPostRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        // Use explicit counts so we can filter isRemoved/isDeleted
         const [likesCount, commentsCount] = await fastify.prisma.$transaction([
           fastify.prisma.like.count({
             where: { postId: post.id, isRemoved: false },
@@ -82,15 +65,42 @@ const getPostRoute: FastifyPluginAsync = async (fastify) => {
           }),
         ])
 
+        // Compute user-specific flags
+        const isLiked = req.user
+          ? !!(await fastify.prisma.postLike.findFirst({
+              where: {
+                postId: post.id,
+                userId: req.user.id,
+                isRemoved: false,
+              },
+            }))
+          : false
+
+        const isSaved = req.user
+          ? !!(await fastify.prisma.savedPost.findFirst({
+              where: {
+                postId: post.id,
+                userId: req.user.id,
+                isRemoved: false,
+              },
+            }))
+          : false
+
+        const dto: PostDTO = toPostDTO(post, {
+          isLiked,
+          isSaved,
+          tags: post.tags.map((t) => t.tag.name),
+        })
+
+        // Override counts since we explicitly computed them
+        dto.likesCount = likesCount
+        dto.commentsCount = commentsCount
+        dto.viewsCount = post.viewsCount
+
         return reply.send({
           success: true,
-          data: {
-            post: {
-              ...post,
-              likesCount,
-              commentsCount,
-            },
-          },
+          message: 'Post fetched successfully.',
+          data: { post: dto },
         })
       } catch (err) {
         return postErrorHandler(req, reply, err, {

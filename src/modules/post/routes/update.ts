@@ -1,3 +1,4 @@
+// src/routes/posts/updatePost.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -7,11 +8,14 @@ import { z } from 'zod'
 import fs from 'fs/promises'
 import { updatePostSchema } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
-import { multipartFieldsToBody } from '../../../utils/multipartFieldsToBody'
+import {
+  multipartFieldsToBody,
+  type UploadedFileField,
+} from '../../../utils/multipartFieldsToBody'
 import { saveMultipartImage } from '../../../utils/saveMultipartImage'
 import { uploadToImageKit } from '../../../utils/uploadToImagekit'
 import type { Prisma, ActivityType } from '@prisma/client'
-import type { MultipartFile } from '@fastify/multipart'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 interface RequestParams {
   postId: string
@@ -29,9 +33,7 @@ const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp']
 const updatePostRoute: FastifyPluginAsync = async (fastify) => {
   fastify.put(
     '/update/:postId',
-    {
-      preHandler: fastify.authenticate,
-    },
+    { preHandler: fastify.authenticate },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user) {
         throw fastify.httpErrors.unauthorized('Authentication required')
@@ -49,20 +51,17 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
       let tempFilePath: string | null = null
 
       try {
-        // Parse multipart fields first
+        // Parse multipart fields into normalized objects (UploadedFileField for files)
         const fields = await multipartFieldsToBody(authenticatedRequest)
 
-        // Validate input with the postId from params
         const result = updatePostSchema.safeParse({
           ...fields,
           postId: rawPostId,
         })
-
         if (!result.success) throw result.error
 
         const { postId, ...updateData }: UpdatePostInput = result.data
 
-        // Check if post exists and user has permission
         const existingPost = await fastify.prisma.post.findFirst({
           where: {
             id: postId,
@@ -86,12 +85,10 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
             typeof updateData.image === 'object' &&
             'file' in updateData.image
           ) {
-            const file = updateData.image as unknown as MultipartFile
-
+            const file = updateData.image as UploadedFileField
             if (file.mimetype && !ALLOWED_IMAGE_MIME.includes(file.mimetype)) {
               throw fastify.httpErrors.badRequest('Unsupported image type')
             }
-
             const { localPath, fileName } = await saveMultipartImage(
               file,
               'posts',
@@ -106,7 +103,6 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        // Build update payload
         const postUpdatePayload: Prisma.PostUpdateInput = {
           updatedAt: new Date(),
           ...(updateData.title !== undefined && { title: updateData.title }),
@@ -131,7 +127,6 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
           }),
         }
 
-        // Use transaction for atomic operations
         const post = await fastify.prisma.$transaction(async (tx) => {
           const updatedPost = await tx.post.update({
             where: { id: postId },
@@ -144,12 +139,12 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
                   username: true,
                   fullName: true,
                   profileImage: true,
+                  isPrivate: true,
                 },
               },
             },
           })
 
-          // Create activity log
           await tx.userActivityLog.create({
             data: {
               userId: authenticatedRequest.user.id,
@@ -165,14 +160,21 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
 
         fastify.log.info(`[Post] Updated post: ${post.id}`)
 
+        // Map into DTO
+        const dto: PostDTO = toPostDTO(post, {
+          tags: post.tags.map((t) => t.tag.name),
+          isLiked: false, // compute if needed
+          isSaved: false, // compute if needed
+        })
+
         return reply.send({
           success: true,
-          data: { post },
+          message: 'Post updated successfully.',
+          data: { post: dto },
         })
       } catch (err) {
         return postErrorHandler(authenticatedRequest, reply, err, context)
       } finally {
-        // Clean up temporary file
         if (tempFilePath) {
           await fs
             .unlink(tempFilePath)

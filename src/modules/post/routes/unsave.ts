@@ -1,3 +1,4 @@
+// src/routes/posts/unsavePost.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -7,6 +8,7 @@ import { z } from 'zod'
 import { savePostSchema } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 type SavePostInput = z.infer<typeof savePostSchema>
 
@@ -33,10 +35,9 @@ const unsavePostRoute: FastifyPluginAsync = async (fastify) => {
         const { postId }: SavePostInput = result.data
         const userId = req.user.id
 
-        const txResult = await fastify.prisma.$transaction(async (tx) => {
+        await fastify.prisma.$transaction(async (tx) => {
           const post = await tx.post.findFirst({
             where: { id: postId, isDeleted: false },
-            select: { id: true },
           })
 
           if (!post) {
@@ -60,23 +61,9 @@ const unsavePostRoute: FastifyPluginAsync = async (fastify) => {
             }
           }
 
-          const updatedSaved = await tx.savedPost.update({
+          await tx.savedPost.update({
             where: { id: existingSave.id },
             data: { isRemoved: true, removedAt: new Date() },
-            include: {
-              post: {
-                include: {
-                  author: {
-                    select: {
-                      id: true,
-                      username: true,
-                      fullName: true,
-                      profileImage: true,
-                    },
-                  },
-                },
-              },
-            },
           })
 
           await tx.userActivityLog.create({
@@ -91,16 +78,63 @@ const unsavePostRoute: FastifyPluginAsync = async (fastify) => {
               userAgent: req.headers['user-agent'] ?? null,
             },
           })
-
-          return updatedSaved
         })
 
         fastify.log.info(`[Post] User ${req.user.id} unsaved post: ${postId}`)
 
+        // Re-fetch post with author/tags for DTO mapping
+        const post = await fastify.prisma.post.findFirst({
+          where: { id: postId, isDeleted: false },
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                profileImage: true,
+                isPrivate: true,
+              },
+            },
+            tags: { include: { tag: true } },
+          },
+        })
+
+        if (!post) {
+          throw {
+            statusCode: 404,
+            code: 'postNotFound',
+            message: 'Post not found after unsave.',
+          }
+        }
+
+        const [likesCount, commentsCount] = await fastify.prisma.$transaction([
+          fastify.prisma.like.count({
+            where: { postId: post.id, isRemoved: false },
+          }),
+          fastify.prisma.comment.count({
+            where: { postId: post.id, isDeleted: false },
+          }),
+        ])
+
+        const isLiked = !!(await fastify.prisma.postLike.findFirst({
+          where: { postId: post.id, userId, isRemoved: false },
+        }))
+
+        const isSaved = false // just unsaved
+
+        const dto: PostDTO = toPostDTO(post, {
+          isLiked,
+          isSaved,
+          tags: post.tags.map((t) => t.tag.name),
+        })
+        dto.likesCount = likesCount
+        dto.commentsCount = commentsCount
+        dto.viewsCount = post.viewsCount
+
         return reply.send({
           success: true,
           message: 'Post unsaved successfully.',
-          data: { savedPost: txResult },
+          data: { post: dto },
         })
       } catch (err) {
         return postErrorHandler(req, reply, err, {

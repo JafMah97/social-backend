@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { likePostSchema } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 type LikePostInput = z.infer<typeof likePostSchema>
 
@@ -34,12 +35,10 @@ const unlikePostRoute: FastifyPluginAsync = async (fastify) => {
         const { postId }: LikePostInput = result.data
         const userId = req.user.id
 
-        // Perform the read + updates + log inside one transaction to avoid races
-        const txResult = await fastify.prisma.$transaction(async (tx) => {
-          // Ensure post exists and is not deleted
+        // Perform the read + updates + log inside one transaction
+        await fastify.prisma.$transaction(async (tx) => {
           const post = await tx.post.findFirst({
             where: { id: postId, isDeleted: false },
-            select: { id: true, likesCount: true },
           })
 
           if (!post) {
@@ -50,7 +49,6 @@ const unlikePostRoute: FastifyPluginAsync = async (fastify) => {
             }
           }
 
-          // Find an existing active like
           const existingLike = await tx.like.findFirst({
             where: { postId, userId, isRemoved: false },
             select: { id: true },
@@ -64,20 +62,16 @@ const unlikePostRoute: FastifyPluginAsync = async (fastify) => {
             }
           }
 
-          // Mark the like as removed
           await tx.like.update({
             where: { id: existingLike.id },
             data: { isRemoved: true, removedAt: new Date() },
           })
 
-          // Decrement likes counter atomically
-          // Use decrement to avoid a second read-modify-write outside the transaction
           await tx.post.update({
             where: { id: postId },
             data: { likesCount: { decrement: 1 } },
           })
 
-          // Log the activity
           await tx.userActivityLog.create({
             data: {
               userId,
@@ -90,16 +84,62 @@ const unlikePostRoute: FastifyPluginAsync = async (fastify) => {
               userAgent: req.headers['user-agent'] ?? null,
             },
           })
-
-          return { likeId: existingLike.id }
         })
 
         fastify.log.info(`[Post] User ${req.user.id} unliked post: ${postId}`)
 
+        // Re-fetch post with author/tags for DTO mapping
+        const post = await fastify.prisma.post.findFirst({
+          where: { id: postId, isDeleted: false },
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                profileImage: true,
+                isPrivate: true,
+              },
+            },
+            tags: { include: { tag: true } },
+          },
+        })
+
+        if (!post) {
+          throw {
+            statusCode: 404,
+            code: 'postNotFound',
+            message: 'Post not found after unlike.',
+          }
+        }
+
+        const [likesCount, commentsCount] = await fastify.prisma.$transaction([
+          fastify.prisma.like.count({
+            where: { postId: post.id, isRemoved: false },
+          }),
+          fastify.prisma.comment.count({
+            where: { postId: post.id, isDeleted: false },
+          }),
+        ])
+
+        const isLiked = false // just unliked
+        const isSaved = !!(await fastify.prisma.savedPost.findFirst({
+          where: { postId: post.id, userId, isRemoved: false },
+        }))
+
+        const dto: PostDTO = toPostDTO(post, {
+          isLiked,
+          isSaved,
+          tags: post.tags.map((t) => t.tag.name),
+        })
+        dto.likesCount = likesCount
+        dto.commentsCount = commentsCount
+        dto.viewsCount = post.viewsCount
+
         return reply.send({
           success: true,
           message: 'Post unliked successfully.',
-          data: { likeId: txResult.likeId },
+          data: { post: dto },
         })
       } catch (err) {
         return postErrorHandler(req, reply, err, {

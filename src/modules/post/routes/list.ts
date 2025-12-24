@@ -1,3 +1,4 @@
+// src/modules/posts/routes/listPostsRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -7,6 +8,7 @@ import { z } from 'zod'
 import { listPostsSchema } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 type ListPostsInput = z.infer<typeof listPostsSchema>
 
@@ -51,7 +53,7 @@ const listPostsRoute: FastifyPluginAsync = async (fastify) => {
           }
         : { ...whereBase, visibility: 'PUBLIC' }
 
-      // Fetch posts and total count in a single transaction
+      // Fetch posts and total count
       const [posts, total] = await fastify.prisma.$transaction([
         fastify.prisma.post.findMany({
           where,
@@ -69,33 +71,11 @@ const listPostsRoute: FastifyPluginAsync = async (fastify) => {
                 isPrivate: true,
               },
             },
-            // small preview of recent likes
-            PostLikes: {
-              where: { isRemoved: false },
-              take: 10,
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    profileImage: true,
-                  },
-                },
-              },
-            },
-            // do not pull full comment lists; we'll count them separately
-            comments: {
-              where: { isDeleted: false },
-              select: { id: true },
-              take: 0,
-            },
           },
         }),
         fastify.prisma.post.count({ where }),
       ])
 
-      // If no posts, return empty response quickly
       if (posts.length === 0) {
         return reply.send({
           success: true,
@@ -113,50 +93,56 @@ const listPostsRoute: FastifyPluginAsync = async (fastify) => {
 
       const postIds = posts.map((p) => p.id)
 
-      // Aggregate counts per post using groupBy to avoid N+1 queries
+      // Aggregate counts per post
       const [likesGroup, commentsGroup] = await fastify.prisma.$transaction([
         fastify.prisma.postLike.groupBy({
           by: ['postId'],
           where: { postId: { in: postIds }, isRemoved: false },
           _count: { _all: true },
-          orderBy: { postId: 'asc' },
         }),
         fastify.prisma.comment.groupBy({
           by: ['postId'],
           where: { postId: { in: postIds }, isDeleted: false },
           _count: { _all: true },
-          orderBy: { postId: 'asc' },
         }),
       ])
 
       const likesMap = new Map<string, number>()
       for (const g of likesGroup) {
-        const count =
-          typeof g._count === 'object' &&
-          g._count !== null &&
-          '_all' in g._count
-            ? (g._count as { _all: number })._all
-            : 0
-        likesMap.set(g.postId, count)
+        likesMap.set(g.postId, (g._count as { _all: number })._all)
       }
 
       const commentsMap = new Map<string, number>()
       for (const g of commentsGroup) {
-        const count =
-          typeof g._count === 'object' &&
-          g._count !== null &&
-          '_all' in g._count
-            ? (g._count as { _all: number })._all
-            : 0
-        commentsMap.set(g.postId, count)
+        commentsMap.set(g.postId, (g._count as { _all: number })._all)
       }
 
-      const resultPosts = posts.map((post) => ({
-        ...post,
-        tags: post.tags.map((pt) => pt.tag),
-        likesCount: likesMap.get(post.id) ?? 0,
-        commentsCount: commentsMap.get(post.id) ?? 0,
-      }))
+      // Map posts into DTOs
+      const resultPosts: PostDTO[] = await Promise.all(
+        posts.map(async (post) => {
+          const isLiked = userId
+            ? !!(await fastify.prisma.postLike.findFirst({
+                where: { postId: post.id, userId, isRemoved: false },
+              }))
+            : false
+
+          const isSaved = userId
+            ? !!(await fastify.prisma.savedPost.findFirst({
+                where: { postId: post.id, userId, isRemoved: false },
+              }))
+            : false
+
+          const dto = toPostDTO(post, {
+            isLiked,
+            isSaved,
+            tags: post.tags.map((t) => t.tag.name),
+          })
+          dto.likesCount = likesMap.get(post.id) ?? 0
+          dto.commentsCount = commentsMap.get(post.id) ?? 0
+          dto.viewsCount = post.viewsCount
+          return dto
+        }),
+      )
 
       return reply.send({
         success: true,

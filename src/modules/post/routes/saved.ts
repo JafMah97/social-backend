@@ -1,3 +1,4 @@
+// src/modules/posts/routes/savedPostsRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -7,6 +8,7 @@ import { z } from 'zod'
 import { listSavedPostsSchema } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 type ListSavedPostsInput = z.infer<typeof listSavedPostsSchema>
 
@@ -68,27 +70,6 @@ const savedPostsRoute: FastifyPluginAsync = async (fastify) => {
                       isPrivate: true,
                     },
                   },
-                  // small preview of recent likes
-                  PostLikes: {
-                    where: { isRemoved: false },
-                    take: 10,
-                    include: {
-                      user: {
-                        select: {
-                          id: true,
-                          username: true,
-                          fullName: true,
-                          profileImage: true,
-                        },
-                      },
-                    },
-                  },
-                  // avoid pulling full comment lists
-                  comments: {
-                    where: { isDeleted: false },
-                    select: { id: true },
-                    take: 0,
-                  },
                 },
               },
             },
@@ -112,60 +93,56 @@ const savedPostsRoute: FastifyPluginAsync = async (fastify) => {
           })
         }
 
-        // Collect postIds and aggregate counts with groupBy
         const postIds = validSavedPosts.map((sp) => sp.post!.id)
 
+        // Aggregate counts
         const [likesGroup, commentsGroup] = await fastify.prisma.$transaction([
           fastify.prisma.like.groupBy({
             by: ['postId'],
             where: { postId: { in: postIds }, isRemoved: false },
             _count: { _all: true },
-            orderBy: { postId: 'asc' },
           }),
           fastify.prisma.comment.groupBy({
             by: ['postId'],
             where: { postId: { in: postIds }, isDeleted: false },
             _count: { _all: true },
-            orderBy: { postId: 'asc' },
           }),
         ])
 
-        // Type-safe extraction of _count._all
         const likesMap = new Map<string, number>()
         for (const g of likesGroup) {
-          const count =
-            typeof g._count === 'object' &&
-            g._count !== null &&
-            '_all' in g._count
-              ? (g._count as { _all: number })._all
-              : 0
-          likesMap.set(g.postId, count)
+          likesMap.set(g.postId, (g._count as { _all: number })._all)
         }
 
         const commentsMap = new Map<string, number>()
         for (const g of commentsGroup) {
-          const count =
-            typeof g._count === 'object' &&
-            g._count !== null &&
-            '_all' in g._count
-              ? (g._count as { _all: number })._all
-              : 0
-          commentsMap.set(g.postId, count)
+          commentsMap.set(g.postId, (g._count as { _all: number })._all)
         }
 
-        const mapped = validSavedPosts.map((savedPost) => {
-          const post = savedPost.post!
-          return {
-            id: savedPost.id,
-            savedAt: savedPost.savedAt,
-            post: {
-              ...post,
-              tags: post.tags.map((pt) => pt.tag),
-              likesCount: likesMap.get(post.id) ?? post.PostLikes.length,
-              commentsCount: commentsMap.get(post.id) ?? 0,
-            },
-          }
-        })
+        // Map into DTOs
+        const mapped = await Promise.all(
+          validSavedPosts.map(async (savedPost) => {
+            const post = savedPost.post!
+            const isLiked = !!(await fastify.prisma.postLike.findFirst({
+              where: { postId: post.id, userId, isRemoved: false },
+            }))
+
+            const dto: PostDTO = toPostDTO(post, {
+              isLiked,
+              isSaved: true,
+              tags: post.tags.map((t) => t.tag.name),
+            })
+            dto.likesCount = likesMap.get(post.id) ?? 0
+            dto.commentsCount = commentsMap.get(post.id) ?? 0
+            dto.viewsCount = post.viewsCount
+
+            return {
+              id: savedPost.id,
+              savedAt: savedPost.savedAt,
+              post: dto,
+            }
+          }),
+        )
 
         return reply.send({
           success: true,

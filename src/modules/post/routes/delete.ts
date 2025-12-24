@@ -1,3 +1,4 @@
+// src/routes/posts/deletePost.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -73,6 +74,7 @@ const deletePostRoute: FastifyPluginAsync = async (fastify) => {
         return reply.send({
           success: true,
           message: 'Post deleted successfully.',
+          data: { postId },
         })
       } catch (err) {
         return postErrorHandler(authenticatedRequest, reply, err, context)

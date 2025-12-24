@@ -12,6 +12,7 @@ import { multipartFieldsToBody } from '../../../utils/multipartFieldsToBody'
 import { saveMultipartImage } from '../../../utils/saveMultipartImage'
 import { uploadToImageKit } from '../../../utils/uploadToImagekit'
 import type { Prisma } from '@prisma/client'
+import { toPostDTO, type PostDTO } from '../dto/postDTO'
 
 interface AuthenticatedRequest extends FastifyRequest {
   user: NonNullable<FastifyRequest['user']>
@@ -40,10 +41,7 @@ const createPostRoute: FastifyPluginAsync = async (fastify) => {
       let tempFilePath: string | null = null
 
       try {
-        // Parse multipart form into structured object
         const fields = await multipartFieldsToBody(authenticatedRequest)
-
-        // Validate against schema
         const result = createPostSchema.safeParse(fields)
         if (!result.success) throw result.error
 
@@ -58,14 +56,13 @@ const createPostRoute: FastifyPluginAsync = async (fastify) => {
           endsAt,
         }: CreatePostInput = result.data
 
-        // Handle image upload
         if (image && typeof image === 'object' && 'file' in image) {
           if (image.mimetype && !ALLOWED_IMAGE_MIME.includes(image.mimetype)) {
             throw fastify.httpErrors.badRequest('Unsupported image type')
           }
 
           const { localPath, fileName } = await saveMultipartImage(
-            image, // now matches UploadedFileField structure
+            image,
             'posts',
             authenticatedRequest.user.id,
           )
@@ -88,7 +85,20 @@ const createPostRoute: FastifyPluginAsync = async (fastify) => {
         }
 
         const post = await fastify.prisma.$transaction(async (tx) => {
-          const createdPost = await tx.post.create({ data: postData })
+          const createdPost = await tx.post.create({
+            data: postData,
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  profileImage: true,
+                  isPrivate: true,
+                },
+              },
+            },
+          })
 
           await tx.userActivityLog.create({
             data: {
@@ -105,9 +115,12 @@ const createPostRoute: FastifyPluginAsync = async (fastify) => {
 
         fastify.log.info(`[Post] Created post: ${post.id}`)
 
+        const dto: PostDTO = toPostDTO(post)
+
         return reply.status(201).send({
           success: true,
-          data: { post },
+          message: 'Post created successfully.',
+          data: { post: dto },
         })
       } catch (err) {
         return postErrorHandler(authenticatedRequest, reply, err, context)
