@@ -1,15 +1,20 @@
+// src/modules/posts/postSchemas.ts
 import { z } from 'zod'
 
-const multipartFileSchema = z
-  .object({
-    filename: z.string().optional(),
-    mimetype: z.string().optional(),
-    fieldname: z.string().optional(),
-    file: z.any().optional(),
-  })
-  .loose()
+/**
+ * Matches the structure produced by multipartFieldsToBody:
+ * { file: Buffer, filename: string, mimetype: string, fieldname: string }
+ */
 
-// Create Post Schema
+export const uploadedFileSchema = z.object({
+  file: z.instanceof(Buffer, { message: 'Invalid file buffer' }),
+  filename: z.string().min(1, 'Filename is required'),
+  mimetype: z
+    .string()
+    .regex(/^image\/(jpeg|png|webp)$/, 'Unsupported image type'),
+  fieldname: z.string().min(1, 'Fieldname is required'),
+})
+
 export const createPostSchema = z.object({
   title: z
     .string()
@@ -23,23 +28,30 @@ export const createPostSchema = z.object({
     .max(5000, 'Content must be at most 5000 characters')
     .optional(),
 
+  // Accept either a URL string or the parsed file object
   image: z
-    .union([z.url({ message: 'Invalid image URL' }), multipartFileSchema])
+    .union([
+      z.string().url({ message: 'Invalid image URL' }),
+      uploadedFileSchema,
+    ])
     .optional()
     .nullable(),
+
   format: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'POLL', 'LINK']).default('TEXT'),
 
   postType: z.enum(['STANDARD', 'STORY', 'REEL', 'AD']).default('STANDARD'),
 
   visibility: z.enum(['PUBLIC', 'PRIVATE', 'FOLLOWERS_ONLY']).default('PUBLIC'),
 
-  tags: z
-    .array(z.string().min(1))
-    .max(10, 'Maximum 10 tags allowed')
+  startsAt: z
+    .string()
+    .datetime({ message: 'startsAt must be an ISO datetime string' })
     .optional(),
 
-  startsAt: z.string().datetime().optional(),
-  endsAt: z.string().datetime().optional(),
+  endsAt: z
+    .string()
+    .datetime({ message: 'endsAt must be an ISO datetime string' })
+    .optional(),
 })
 
 export type CreatePostInput = z.infer<typeof createPostSchema>

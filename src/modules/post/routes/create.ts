@@ -1,3 +1,4 @@
+// src/modules/posts/routes/createPostRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -11,7 +12,6 @@ import { multipartFieldsToBody } from '../../../utils/multipartFieldsToBody'
 import { saveMultipartImage } from '../../../utils/saveMultipartImage'
 import { uploadToImageKit } from '../../../utils/uploadToImagekit'
 import type { Prisma } from '@prisma/client'
-import type { MultipartFile } from '@fastify/multipart'
 
 interface AuthenticatedRequest extends FastifyRequest {
   user: NonNullable<FastifyRequest['user']>
@@ -40,7 +40,10 @@ const createPostRoute: FastifyPluginAsync = async (fastify) => {
       let tempFilePath: string | null = null
 
       try {
+        // Parse multipart form into structured object
         const fields = await multipartFieldsToBody(authenticatedRequest)
+
+        // Validate against schema
         const result = createPostSchema.safeParse(fields)
         if (!result.success) throw result.error
 
@@ -55,15 +58,14 @@ const createPostRoute: FastifyPluginAsync = async (fastify) => {
           endsAt,
         }: CreatePostInput = result.data
 
+        // Handle image upload
         if (image && typeof image === 'object' && 'file' in image) {
-          const file = image as unknown as MultipartFile
-
-          if (file.mimetype && !ALLOWED_IMAGE_MIME.includes(file.mimetype)) {
+          if (image.mimetype && !ALLOWED_IMAGE_MIME.includes(image.mimetype)) {
             throw fastify.httpErrors.badRequest('Unsupported image type')
           }
 
           const { localPath, fileName } = await saveMultipartImage(
-            file,
+            image, // now matches UploadedFileField structure
             'posts',
             authenticatedRequest.user.id,
           )
