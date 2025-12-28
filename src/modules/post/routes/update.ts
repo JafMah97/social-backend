@@ -1,4 +1,3 @@
-// src/routes/posts/updatePost.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -51,7 +50,6 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
       let tempFilePath: string | null = null
 
       try {
-        // Parse multipart fields into normalized objects (UploadedFileField for files)
         const fields = await multipartFieldsToBody(authenticatedRequest)
 
         const result = updatePostSchema.safeParse({
@@ -78,7 +76,6 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        // Handle image upload if provided
         if (updateData.image !== undefined) {
           if (
             updateData.image &&
@@ -160,11 +157,26 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
 
         fastify.log.info(`[Post] Updated post: ${post.id}`)
 
-        // Map into DTO
+        const isLiked = !!(await fastify.prisma.postLike.findFirst({
+          where: {
+            postId: post.id,
+            userId: authenticatedRequest.user.id,
+            isRemoved: false,
+          },
+        }))
+
+        const isSaved = !!(await fastify.prisma.savedPost.findFirst({
+          where: {
+            postId: post.id,
+            userId: authenticatedRequest.user.id,
+            isRemoved: false,
+          },
+        }))
+
         const dto: PostDTO = toPostDTO(post, {
           tags: post.tags.map((t) => t.tag.name),
-          isLiked: false, // compute if needed
-          isSaved: false, // compute if needed
+          isLiked,
+          isSaved,
         })
 
         return reply.send({

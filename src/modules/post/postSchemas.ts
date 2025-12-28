@@ -69,19 +69,17 @@ export const getPostSchema = z.object({
 })
 
 export type GetPostInput = z.infer<typeof getPostSchema>
-
-// List Posts Schema
 export const listPostsSchema = z.object({
-  page: z
-    .string()
-    .transform((val) => Number(val || 1))
+  page: z.coerce
+    .number()
+    .default(1)
     .refine((val) => Number.isInteger(val) && val > 0, {
       message: 'Page must be a positive integer',
     }),
 
-  limit: z
-    .string()
-    .transform((val) => Number(val || 20))
+  limit: z.coerce
+    .number()
+    .default(20)
     .refine((val) => Number.isInteger(val) && val >= 1 && val <= 50, {
       message: 'Limit must be between 1 and 50',
     }),
@@ -89,7 +87,6 @@ export const listPostsSchema = z.object({
   authorId: z.cuid('Invalid author ID').optional(),
   format: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'POLL', 'LINK']).optional(),
 })
-
 export type ListPostsInput = z.infer<typeof listPostsSchema>
 
 // Like Post Schema

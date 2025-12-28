@@ -1,4 +1,3 @@
-// src/modules/posts/routes/getPostRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -57,7 +56,7 @@ const getPostRoute: FastifyPluginAsync = async (fastify) => {
         }
 
         const [likesCount, commentsCount] = await fastify.prisma.$transaction([
-          fastify.prisma.like.count({
+          fastify.prisma.postLike.count({
             where: { postId: post.id, isRemoved: false },
           }),
           fastify.prisma.comment.count({
@@ -65,7 +64,6 @@ const getPostRoute: FastifyPluginAsync = async (fastify) => {
           }),
         ])
 
-        // Compute user-specific flags
         const isLiked = req.user
           ? !!(await fastify.prisma.postLike.findFirst({
               where: {
@@ -92,7 +90,6 @@ const getPostRoute: FastifyPluginAsync = async (fastify) => {
           tags: post.tags.map((t) => t.tag.name),
         })
 
-        // Override counts since we explicitly computed them
         dto.likesCount = likesCount
         dto.commentsCount = commentsCount
         dto.viewsCount = post.viewsCount

@@ -1,4 +1,3 @@
-// src/modules/posts/routes/likePostRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -58,40 +57,36 @@ const likePostRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        await fastify.prisma.$transaction(async (tx) => {
-          const existing = await tx.like.findFirst({
-            where: { postId, userId: authenticatedRequest.user.id },
-          })
+        const existing = await fastify.prisma.postLike.findFirst({
+          where: { postId, userId: authenticatedRequest.user.id },
+        })
 
-          if (existing && !existing.isRemoved) {
-            throw {
-              statusCode: 409,
-              code: 'alreadyLiked',
-              message: 'You have already liked this post.',
-            }
+        if (existing && !existing.isRemoved) {
+          throw {
+            statusCode: 409,
+            code: 'alreadyLiked',
+            message: 'You have already liked this post.',
           }
+        }
 
-          // clear any removed likes
-          await tx.like.deleteMany({
+        await fastify.prisma.$transaction([
+          fastify.prisma.postLike.deleteMany({
             where: { postId, userId: authenticatedRequest.user.id },
-          })
+          }),
 
-          // create new like
-          await tx.like.create({
+          fastify.prisma.postLike.create({
             data: {
               postId,
               userId: authenticatedRequest.user.id,
             },
-          })
+          }),
 
-          // increment post likesCount
-          await tx.post.update({
+          fastify.prisma.post.update({
             where: { id: postId },
             data: { likesCount: { increment: 1 } },
-          })
+          }),
 
-          // log activity
-          await tx.userActivityLog.create({
+          fastify.prisma.userActivityLog.create({
             data: {
               userId: authenticatedRequest.user.id,
               action: 'POST_LIKE',
@@ -99,16 +94,15 @@ const likePostRoute: FastifyPluginAsync = async (fastify) => {
               ipAddress: authenticatedRequest.ip,
               userAgent: authenticatedRequest.headers['user-agent'] ?? null,
             },
-          })
-        })
+          }),
+        ])
 
         fastify.log.info(
           `[Post] User ${authenticatedRequest.user.id} liked post: ${postId}`,
         )
 
-        // recompute counts and flags
         const [likesCount, commentsCount] = await fastify.prisma.$transaction([
-          fastify.prisma.like.count({
+          fastify.prisma.postLike.count({
             where: { postId: post.id, isRemoved: false },
           }),
           fastify.prisma.comment.count({

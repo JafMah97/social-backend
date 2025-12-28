@@ -1,4 +1,3 @@
-// src/routes/posts/unsavePost.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -35,54 +34,7 @@ const unsavePostRoute: FastifyPluginAsync = async (fastify) => {
         const { postId }: SavePostInput = result.data
         const userId = req.user.id
 
-        await fastify.prisma.$transaction(async (tx) => {
-          const post = await tx.post.findFirst({
-            where: { id: postId, isDeleted: false },
-          })
-
-          if (!post) {
-            throw {
-              statusCode: 404,
-              code: 'postNotFound',
-              message: 'Post not found.',
-            }
-          }
-
-          const existingSave = await tx.savedPost.findFirst({
-            where: { postId, userId, isRemoved: false },
-            select: { id: true },
-          })
-
-          if (!existingSave) {
-            throw {
-              statusCode: 409,
-              code: 'notSaved',
-              message: 'You have not saved this post.',
-            }
-          }
-
-          await tx.savedPost.update({
-            where: { id: existingSave.id },
-            data: { isRemoved: true, removedAt: new Date() },
-          })
-
-          await tx.userActivityLog.create({
-            data: {
-              userId,
-              action: 'POST_UNSAVE',
-              metadata: {
-                postId,
-                savedPostId: existingSave.id,
-              } as Prisma.InputJsonValue,
-              ipAddress: req.ip,
-              userAgent: req.headers['user-agent'] ?? null,
-            },
-          })
-        })
-
-        fastify.log.info(`[Post] User ${req.user.id} unsaved post: ${postId}`)
-
-        // Re-fetch post with author/tags for DTO mapping
+        // STEP 1 — Validate post exists
         const post = await fastify.prisma.post.findFirst({
           where: { id: postId, isDeleted: false },
           include: {
@@ -103,12 +55,50 @@ const unsavePostRoute: FastifyPluginAsync = async (fastify) => {
           throw {
             statusCode: 404,
             code: 'postNotFound',
-            message: 'Post not found after unsave.',
+            message: 'Post not found.',
           }
         }
 
+        // STEP 2 — Check existing save
+        const existingSave = await fastify.prisma.savedPost.findFirst({
+          where: { postId, userId, isRemoved: false },
+          select: { id: true },
+        })
+
+        if (!existingSave) {
+          throw {
+            statusCode: 409,
+            code: 'notSaved',
+            message: 'You have not saved this post.',
+          }
+        }
+
+        // STEP 3 — Batch transaction (atomic, no timeout)
+        await fastify.prisma.$transaction([
+          fastify.prisma.savedPost.update({
+            where: { id: existingSave.id },
+            data: { isRemoved: true, removedAt: new Date() },
+          }),
+
+          fastify.prisma.userActivityLog.create({
+            data: {
+              userId,
+              action: 'POST_UNSAVE',
+              metadata: {
+                postId,
+                savedPostId: existingSave.id,
+              } as Prisma.InputJsonValue,
+              ipAddress: req.ip,
+              userAgent: req.headers['user-agent'] ?? null,
+            },
+          }),
+        ])
+
+        fastify.log.info(`[Post] User ${req.user.id} unsaved post: ${postId}`)
+
+        // STEP 4 — Recompute counts
         const [likesCount, commentsCount] = await fastify.prisma.$transaction([
-          fastify.prisma.like.count({
+          fastify.prisma.postLike.count({
             where: { postId: post.id, isRemoved: false },
           }),
           fastify.prisma.comment.count({
@@ -120,11 +110,9 @@ const unsavePostRoute: FastifyPluginAsync = async (fastify) => {
           where: { postId: post.id, userId, isRemoved: false },
         }))
 
-        const isSaved = false // just unsaved
-
         const dto: PostDTO = toPostDTO(post, {
           isLiked,
-          isSaved,
+          isSaved: false,
           tags: post.tags.map((t) => t.tag.name),
         })
         dto.likesCount = likesCount

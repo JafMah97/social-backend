@@ -1,4 +1,3 @@
-// src/routes/posts/unlikePost.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -35,60 +34,7 @@ const unlikePostRoute: FastifyPluginAsync = async (fastify) => {
         const { postId }: LikePostInput = result.data
         const userId = req.user.id
 
-        // Perform the read + updates + log inside one transaction
-        await fastify.prisma.$transaction(async (tx) => {
-          const post = await tx.post.findFirst({
-            where: { id: postId, isDeleted: false },
-          })
-
-          if (!post) {
-            throw {
-              statusCode: 404,
-              code: 'postNotFound',
-              message: 'Post not found.',
-            }
-          }
-
-          const existingLike = await tx.like.findFirst({
-            where: { postId, userId, isRemoved: false },
-            select: { id: true },
-          })
-
-          if (!existingLike) {
-            throw {
-              statusCode: 409,
-              code: 'notLiked',
-              message: 'You have not liked this post.',
-            }
-          }
-
-          await tx.like.update({
-            where: { id: existingLike.id },
-            data: { isRemoved: true, removedAt: new Date() },
-          })
-
-          await tx.post.update({
-            where: { id: postId },
-            data: { likesCount: { decrement: 1 } },
-          })
-
-          await tx.userActivityLog.create({
-            data: {
-              userId,
-              action: 'POST_UNLIKE',
-              metadata: {
-                postId,
-                likeId: existingLike.id,
-              } as Prisma.InputJsonValue,
-              ipAddress: req.ip,
-              userAgent: req.headers['user-agent'] ?? null,
-            },
-          })
-        })
-
-        fastify.log.info(`[Post] User ${req.user.id} unliked post: ${postId}`)
-
-        // Re-fetch post with author/tags for DTO mapping
+        // STEP 1 — Validate post exists
         const post = await fastify.prisma.post.findFirst({
           where: { id: postId, isDeleted: false },
           include: {
@@ -109,12 +55,55 @@ const unlikePostRoute: FastifyPluginAsync = async (fastify) => {
           throw {
             statusCode: 404,
             code: 'postNotFound',
-            message: 'Post not found after unlike.',
+            message: 'Post not found.',
           }
         }
 
+        // STEP 2 — Check existing like
+        const existingLike = await fastify.prisma.postLike.findFirst({
+          where: { postId, userId, isRemoved: false },
+          select: { id: true },
+        })
+
+        if (!existingLike) {
+          throw {
+            statusCode: 409,
+            code: 'notLiked',
+            message: 'You have not liked this post.',
+          }
+        }
+
+        // STEP 3 — Batch transaction (atomic, no timeout)
+        await fastify.prisma.$transaction([
+          fastify.prisma.postLike.update({
+            where: { id: existingLike.id },
+            data: { isRemoved: true, removedAt: new Date() },
+          }),
+
+          fastify.prisma.post.update({
+            where: { id: postId },
+            data: { likesCount: { decrement: 1 } },
+          }),
+
+          fastify.prisma.userActivityLog.create({
+            data: {
+              userId,
+              action: 'POST_UNLIKE',
+              metadata: {
+                postId,
+                likeId: existingLike.id,
+              } as Prisma.InputJsonValue,
+              ipAddress: req.ip,
+              userAgent: req.headers['user-agent'] ?? null,
+            },
+          }),
+        ])
+
+        fastify.log.info(`[Post] User ${req.user.id} unliked post: ${postId}`)
+
+        // STEP 4 — Recompute counts
         const [likesCount, commentsCount] = await fastify.prisma.$transaction([
-          fastify.prisma.like.count({
+          fastify.prisma.postLike.count({
             where: { postId: post.id, isRemoved: false },
           }),
           fastify.prisma.comment.count({
@@ -122,13 +111,12 @@ const unlikePostRoute: FastifyPluginAsync = async (fastify) => {
           }),
         ])
 
-        const isLiked = false // just unliked
         const isSaved = !!(await fastify.prisma.savedPost.findFirst({
           where: { postId: post.id, userId, isRemoved: false },
         }))
 
         const dto: PostDTO = toPostDTO(post, {
-          isLiked,
+          isLiked: false,
           isSaved,
           tags: post.tags.map((t) => t.tag.name),
         })

@@ -1,4 +1,4 @@
-// src/modules/posts/routes/savePostRoute.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -69,23 +69,26 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
           post.author?.fullName ?? post.author?.username ?? '',
         )
 
-        // Transaction: check existing -> create or reactivate -> log
-        await fastify.prisma.$transaction(async (tx) => {
-          const existing = await tx.savedPost.findFirst({
-            where: { postId, userId },
-            select: { id: true, isRemoved: true },
-          })
+        // STEP 1 — Check existing outside transaction
+        const existing = await fastify.prisma.savedPost.findFirst({
+          where: { postId, userId },
+          select: { id: true, isRemoved: true },
+        })
 
-          if (existing && !existing.isRemoved) {
-            throw {
-              statusCode: 409,
-              code: 'alreadySaved',
-              message: 'You have already saved this post.',
-            }
+        if (existing && !existing.isRemoved) {
+          throw {
+            statusCode: 409,
+            code: 'alreadySaved',
+            message: 'You have already saved this post.',
           }
+        }
 
-          if (existing && existing.isRemoved) {
-            await tx.savedPost.update({
+        // STEP 2 — Build batch queries
+        const queries: any[] = []
+
+        if (existing && existing.isRemoved) {
+          queries.push(
+            fastify.prisma.savedPost.update({
               where: { id: existing.id },
               data: {
                 isRemoved: false,
@@ -94,9 +97,11 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
                 postImage,
                 postAuthor,
               },
-            })
-          } else {
-            await tx.savedPost.create({
+            }),
+          )
+        } else {
+          queries.push(
+            fastify.prisma.savedPost.create({
               data: {
                 postId,
                 userId,
@@ -104,10 +109,12 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
                 postImage,
                 postAuthor,
               },
-            })
-          }
+            }),
+          )
+        }
 
-          await tx.userActivityLog.create({
+        queries.push(
+          fastify.prisma.userActivityLog.create({
             data: {
               userId,
               action: 'POST_SAVE',
@@ -115,14 +122,16 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
               ipAddress: authenticatedRequest.ip,
               userAgent: authenticatedRequest.headers['user-agent'] ?? null,
             },
-          })
-        })
+          }),
+        )
+
+        // STEP 3 — Execute batch transaction
+        await fastify.prisma.$transaction(queries)
 
         fastify.log.info(`[Post] User ${userId} saved post: ${postId}`)
 
-        // recompute flags and counts for DTO
         const [likesCount, commentsCount] = await fastify.prisma.$transaction([
-          fastify.prisma.like.count({
+          fastify.prisma.postLike.count({
             where: { postId: post.id, isRemoved: false },
           }),
           fastify.prisma.comment.count({
@@ -134,11 +143,9 @@ const savePostRoute: FastifyPluginAsync = async (fastify) => {
           where: { postId: post.id, userId, isRemoved: false },
         }))
 
-        const isSaved = true // just saved
-
         const dto: PostDTO = toPostDTO(post, {
           isLiked,
-          isSaved,
+          isSaved: true,
           tags: post.tags.map((t) => t.tag.name),
         })
         dto.likesCount = likesCount

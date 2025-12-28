@@ -1,4 +1,3 @@
-// src/modules/posts/routes/savedPostsRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
@@ -50,7 +49,6 @@ const savedPostsRoute: FastifyPluginAsync = async (fastify) => {
           },
         }
 
-        // Fetch saved posts page + total count
         const [savedPosts, total] = await fastify.prisma.$transaction([
           fastify.prisma.savedPost.findMany({
             where,
@@ -95,9 +93,8 @@ const savedPostsRoute: FastifyPluginAsync = async (fastify) => {
 
         const postIds = validSavedPosts.map((sp) => sp.post!.id)
 
-        // Aggregate counts
         const [likesGroup, commentsGroup] = await fastify.prisma.$transaction([
-          fastify.prisma.like.groupBy({
+          fastify.prisma.postLike.groupBy({
             by: ['postId'],
             where: { postId: { in: postIds }, isRemoved: false },
             _count: { _all: true },
@@ -119,7 +116,6 @@ const savedPostsRoute: FastifyPluginAsync = async (fastify) => {
           commentsMap.set(g.postId, (g._count as { _all: number })._all)
         }
 
-        // Map into DTOs
         const mapped = await Promise.all(
           validSavedPosts.map(async (savedPost) => {
             const post = savedPost.post!
