@@ -10,6 +10,6 @@ export function startKeepAlive(app: FastifyInstance) {
         app.log.error(`Neon keep-alive ping failed: ${(err as Error).message}`)
       }
     },
-    5 * 60 * 1000,
+    5*60 * 1000,
   )
 }

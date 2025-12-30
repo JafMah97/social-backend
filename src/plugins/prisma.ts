@@ -3,11 +3,12 @@ import { type FastifyPluginAsync, type FastifyInstance } from 'fastify'
 import { PrismaClient } from '@prisma/client'
 import chalk from 'chalk'
 
-const MAX_RETRIES = 5
-const RETRY_DELAY_MS = 2000
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 1500
 
 /**
  * Attempts to connect to the database with retry logic.
+ * (Supabase is stable, so this is mostly defensive.)
  */
 async function connectWithRetry(
   prisma: PrismaClient,
@@ -16,13 +17,14 @@ async function connectWithRetry(
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       await prisma.$connect()
-      fastify.log.info(chalk.green(`Connected to Neon (attempt ${attempt})`))
+      fastify.log.info(
+        chalk.green(`Connected to Supabase (attempt ${attempt})`),
+      )
       return true
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'An unknown error occurred'
+      const message = err instanceof Error ? err.message : 'Unknown error'
       fastify.log.warn(
-        chalk.yellow(`Neon connect attempt ${attempt} failed: ${message}`),
+        chalk.yellow(`Supabase connect attempt ${attempt} failed: ${message}`),
       )
 
       if (attempt < MAX_RETRIES) {
@@ -40,16 +42,14 @@ async function connectWithRetry(
  * Fastify Prisma plugin with retry and graceful shutdown.
  */
 const prismaPlugin: FastifyPluginAsync = async (fastify) => {
-  fastify.log.info(chalk.cyan('Initializing Prisma with Neon...'))
+  fastify.log.info(chalk.cyan('Initializing Prisma with Supabase...'))
 
   const prisma = new PrismaClient()
   const connected = await connectWithRetry(prisma, fastify)
 
   if (!connected) {
     fastify.log.error(
-      chalk.red(
-        `Could not connect to Neon after ${MAX_RETRIES} attempts. Continuing without DB.`,
-      ),
+      chalk.red(`Could not connect to Supabase after ${MAX_RETRIES} attempts.`),
     )
   }
 
@@ -58,10 +58,9 @@ const prismaPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onClose', async () => {
     try {
       await prisma.$disconnect()
-      fastify.log.info(chalk.blue('Disconnected from Neon'))
+      fastify.log.info(chalk.blue('Disconnected from Supabase'))
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'An unknown error occurred'
+      const message = err instanceof Error ? err.message : 'Unknown error'
       fastify.log.error(chalk.red(`Error disconnecting Prisma: ${message}`))
     }
   })
