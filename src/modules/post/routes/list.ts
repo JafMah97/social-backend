@@ -1,15 +1,13 @@
+// src/modules/posts/routes/listPostsRoute.ts
 import {
   type FastifyPluginAsync,
   type FastifyRequest,
   type FastifyReply,
 } from 'fastify'
-import { z } from 'zod'
-import { listPostsSchema } from '../postSchemas'
+import { listPostsSchema, type ListPostsInput } from '../postSchemas'
 import { postErrorHandler } from '../postErrorHandler'
 import type { Prisma } from '@prisma/client'
 import { toPostDTO, type PostDTO } from '../dto/postDTO'
-
-type ListPostsInput = z.infer<typeof listPostsSchema>
 
 interface AuthenticatedRequest extends FastifyRequest {
   user?: NonNullable<FastifyRequest['user']>
@@ -35,6 +33,7 @@ const listPostsRoute: FastifyPluginAsync = async (fastify) => {
       )
 
       try {
+        // Zod will coerce strings to numbers, so we can pass req.query directly
         const parsed = listPostsSchema.safeParse(req.query)
         if (!parsed.success) throw parsed.error
 
@@ -84,21 +83,6 @@ const listPostsRoute: FastifyPluginAsync = async (fastify) => {
           }),
           fastify.prisma.post.count({ where }),
         ])
-
-        if (posts.length === 0) {
-          return reply.send({
-            success: true,
-            data: {
-              posts: [],
-              pagination: {
-                page,
-                limit: cappedLimit,
-                total,
-                pages: Math.ceil(total / cappedLimit),
-              },
-            },
-          })
-        }
 
         const postIds = posts.map((p) => p.id)
 

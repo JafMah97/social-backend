@@ -53,39 +53,43 @@ const editCommentRoute: FastifyPluginAsync = async (fastify) => {
           )
         }
 
-        const comment = await fastify.prisma.$transaction(async (tx) => {
-          // Update the comment
-          const updatedComment = await tx.comment.update({
-            where: { id: commentId },
-            data: {
-              content,
-              updatedAt: new Date(),
-            },
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  username: true,
-                  profileImage: true,
-                  fullName: true,
-                },
-              },
-              commentLikes: {
-                where: { isRemoved: false },
-                select: { userId: true },
-              },
-              _count: {
-                select: {
-                  commentLikes: {
-                    where: { isRemoved: false },
-                  },
-                },
+        // -----------------------------------------
+        // STEP 1 — Update the comment (no transaction)
+        // -----------------------------------------
+        const updatedComment = await fastify.prisma.comment.update({
+          where: { id: commentId },
+          data: {
+            content,
+            updatedAt: new Date(),
+          },
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                profileImage: true,
+                fullName: true,
               },
             },
-          })
+            commentLikes: {
+              where: { isRemoved: false },
+              select: { userId: true },
+            },
+            _count: {
+              select: {
+                commentLikes: {
+                  where: { isRemoved: false },
+                },
+              },
+            },
+          },
+        })
 
-          // Log activity
-          await tx.userActivityLog.create({
+        // -----------------------------------------
+        // STEP 2 — Log activity (safe batch transaction)
+        // -----------------------------------------
+        await fastify.prisma.$transaction([
+          fastify.prisma.userActivityLog.create({
             data: {
               userId: authenticatedRequest.user.id,
               action: 'COMMENT_UPDATE',
@@ -96,20 +100,18 @@ const editCommentRoute: FastifyPluginAsync = async (fastify) => {
               ipAddress: authenticatedRequest.ip,
               userAgent: authenticatedRequest.headers['user-agent'] ?? null,
             },
-          })
+          }),
+        ])
 
-          return updatedComment
-        })
-
-        fastify.log.info(`[Comment] Updated comment: ${comment.id}`)
+        fastify.log.info(`[Comment] Updated comment: ${updatedComment.id}`)
 
         return reply.status(200).send({
           success: true,
           data: {
             comment: {
-              ...comment,
-              likesCount: comment._count.commentLikes,
-              isLiked: comment.commentLikes.some(
+              ...updatedComment,
+              likesCount: updatedComment._count.commentLikes,
+              isLiked: updatedComment.commentLikes.some(
                 (like) => like.userId === authenticatedRequest.user.id,
               ),
             },

@@ -88,14 +88,8 @@ export async function uploadToImageKit(
     console.error('ImageKit upload failed:', error)
     throw new Error('ImageKit upload failed')
   } finally {
-    // Clean up local file
     if (deleteLocal) {
-      try {
-        await fs.promises.unlink(fullPath)
-        console.log('Local file cleaned up:', fullPath)
-      } catch (cleanupError) {
-        console.warn('Failed to delete local file:', cleanupError)
-      }
+      await fs.promises.unlink(fullPath)
     }
   }
 }

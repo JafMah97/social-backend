@@ -44,59 +44,61 @@ const createCommentRoute: FastifyPluginAsync = async (fastify) => {
           throw fastify.httpErrors.notFound('Post not found')
         }
 
-        const comment = await fastify.prisma.$transaction(async (tx) => {
-          // Create the comment
-          const createdComment = await tx.comment.create({
-            data: {
-              postId,
-              authorId: authenticatedRequest.user.id,
-              content,
-              authorUsername: authenticatedRequest.user.username,
-              authorImage: authenticatedRequest.user.profileImage,
-            },
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  username: true,
-                  profileImage: true,
-                  fullName: true,
-                },
-              },
-              commentLikes: {
-                where: { isRemoved: false },
-                select: { userId: true },
-              },
-              _count: {
-                select: {
-                  commentLikes: {
-                    where: { isRemoved: false },
-                  },
-                },
+        // -----------------------------------------
+        // STEP 1 — Create the comment (no transaction)
+        // -----------------------------------------
+        const createdComment = await fastify.prisma.comment.create({
+          data: {
+            postId,
+            authorId: authenticatedRequest.user.id,
+            content,
+            authorUsername: authenticatedRequest.user.username,
+            authorImage: authenticatedRequest.user.profileImage,
+          },
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                profileImage: true,
+                fullName: true,
               },
             },
-          })
+            commentLikes: {
+              where: { isRemoved: false },
+              select: { userId: true },
+            },
+            _count: {
+              select: {
+                commentLikes: {
+                  where: { isRemoved: false },
+                },
+              },
+            },
+          },
+        })
 
-          // Update post comments count
-          await tx.post.update({
+        // -----------------------------------------
+        // STEP 2 — Safe batch transaction
+        // -----------------------------------------
+        await fastify.prisma.$transaction([
+          fastify.prisma.post.update({
             where: { id: postId },
             data: {
               commentsCount: { increment: 1 },
             },
-          })
+          }),
 
-          // Create comment author info
-          await tx.commentAuthorInfo.create({
+          fastify.prisma.commentAuthorInfo.create({
             data: {
               commentId: createdComment.id,
               authorId: authenticatedRequest.user.id,
               authorUsername: authenticatedRequest.user.username,
               authorImage: authenticatedRequest.user.profileImage,
             },
-          })
+          }),
 
-          // Log activity
-          await tx.userActivityLog.create({
+          fastify.prisma.userActivityLog.create({
             data: {
               userId: authenticatedRequest.user.id,
               action: 'COMMENT_CREATE',
@@ -107,20 +109,18 @@ const createCommentRoute: FastifyPluginAsync = async (fastify) => {
               ipAddress: authenticatedRequest.ip,
               userAgent: authenticatedRequest.headers['user-agent'] ?? null,
             },
-          })
+          }),
+        ])
 
-          return createdComment
-        })
-
-        fastify.log.info(`[Comment] Created comment: ${comment.id}`)
+        fastify.log.info(`[Comment] Created comment: ${createdComment.id}`)
 
         return reply.status(201).send({
           success: true,
           data: {
             comment: {
-              ...comment,
-              likesCount: comment._count.commentLikes,
-              isLiked: comment.commentLikes.some(
+              ...createdComment,
+              likesCount: createdComment._count.commentLikes,
+              isLiked: createdComment.commentLikes.some(
                 (like) => like.userId === authenticatedRequest.user.id,
               ),
             },
