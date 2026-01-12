@@ -37,9 +37,25 @@ const unlikeCommentRoute: FastifyPluginAsync = async (fastify) => {
 
         // Check if comment exists
         const comment = await fastify.prisma.comment.findFirst({
-          where: {
-            id: commentId,
-            isDeleted: false,
+          where: { id: commentId, isDeleted: false },
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                profileImage: true,
+                fullName: true,
+              },
+            },
+            commentLikes: {
+              where: { isRemoved: false },
+              select: { userId: true },
+            },
+            _count: {
+              select: {
+                commentLikes: { where: { isRemoved: false } },
+              },
+            },
           },
         })
 
@@ -62,7 +78,6 @@ const unlikeCommentRoute: FastifyPluginAsync = async (fastify) => {
         }
 
         await fastify.prisma.$transaction(async (tx) => {
-          // Soft delete the like
           await tx.commentLike.update({
             where: {
               userId_commentId: {
@@ -76,7 +91,6 @@ const unlikeCommentRoute: FastifyPluginAsync = async (fastify) => {
             },
           })
 
-          // Log activity
           await tx.userActivityLog.create({
             data: {
               userId: authenticatedRequest.user.id,
@@ -93,9 +107,26 @@ const unlikeCommentRoute: FastifyPluginAsync = async (fastify) => {
 
         fastify.log.info(`[Comment] Unliked comment: ${commentId}`)
 
+        // ✅ Normalized response
         return reply.status(200).send({
           success: true,
-          message: 'Comment unliked successfully',
+          data: {
+            comment: {
+              id: comment.id,
+              postId: comment.postId,
+              content: comment.content,
+              createdAt: comment.createdAt,
+              updatedAt: comment.updatedAt,
+              likesCount: comment._count.commentLikes - 1, // decrement
+              isLiked: false,
+              author: {
+                id: comment.author.id,
+                username: comment.author.username,
+                profileImage: comment.author.profileImage,
+                fullName: comment.author.fullName,
+              },
+            },
+          },
         })
       } catch (err) {
         return commentErrorHandler(authenticatedRequest, reply, err, context)

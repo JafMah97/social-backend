@@ -27,6 +27,7 @@ const likePostRoute: FastifyPluginAsync = async (fastify) => {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const authenticatedRequest = request as AuthenticatedRequest
       const { postId: rawPostId } = authenticatedRequest.params
+      const userId = authenticatedRequest.user?.id
 
       try {
         const result = likePostSchema.safeParse({ postId: rawPostId })
@@ -109,10 +110,15 @@ const likePostRoute: FastifyPluginAsync = async (fastify) => {
             where: { postId: post.id, isDeleted: false },
           }),
         ])
+        
+        const isSaved = !!(await fastify.prisma.savedPost.findFirst({
+          where: { postId: post.id, userId, isRemoved: false },
+        }))
+
 
         const dto: PostDTO = toPostDTO(post, {
           isLiked: true,
-          isSaved: false,
+          isSaved,
           tags: post.tags.map((t) => t.tag.name),
         })
         dto.likesCount = likesCount

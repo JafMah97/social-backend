@@ -22,15 +22,6 @@ const listPostsRoute: FastifyPluginAsync = async (fastify) => {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const req = request as AuthenticatedRequest
 
-      fastify.log.info(
-        {
-          hasUser: !!req.user,
-          userId: req.user?.id || null,
-          authHeader: request.headers.authorization ? 'present' : 'missing',
-          cookies: request.cookies ? Object.keys(request.cookies) : [],
-        },
-        '🔍 listPostsRoute → Auth Debug',
-      )
 
       try {
         // Zod will coerce strings to numbers, so we can pass req.query directly

@@ -50,7 +50,16 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
       let tempFilePath: string | null = null
 
       try {
-        const fields = await multipartFieldsToBody(authenticatedRequest)
+        // ✅ Dual-mode: parse multipart if multipart, otherwise use JSON body
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let fields : any
+        if (request.isMultipart()) {
+          fields = await multipartFieldsToBody(authenticatedRequest)
+          fastify.log.info({ fields }, '[UpdatePost] Parsed multipart fields')
+        } else {
+          fields = request.body
+          fastify.log.info({ fields }, '[UpdatePost] Parsed JSON body')
+        }
 
         const result = updatePostSchema.safeParse({
           ...fields,
@@ -59,6 +68,10 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
         if (!result.success) throw result.error
 
         const { postId, ...updateData }: UpdatePostInput = result.data
+        fastify.log.info(
+          { updateData },
+          '[UpdatePost] Incoming updateData after schema parse',
+        )
 
         const existingPost = await fastify.prisma.post.findFirst({
           where: {
@@ -76,13 +89,22 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
           }
         }
 
+        // ✅ Handle image cases
         if (updateData.image !== undefined) {
-          if (
-            updateData.image &&
-            typeof updateData.image === 'object' &&
-            'file' in updateData.image
-          ) {
-            const file = updateData.image as UploadedFileField
+          let rawImage = updateData.image
+
+          // Normalize string "null" to actual null
+          if (rawImage === 'null') {
+            rawImage = null
+          }
+
+          fastify.log.info(
+            { imageField: rawImage },
+            '[UpdatePost] Raw image field',
+          )
+
+          if (rawImage && typeof rawImage === 'object' && 'file' in rawImage) {
+            const file = rawImage as UploadedFileField
             if (file.mimetype && !ALLOWED_IMAGE_MIME.includes(file.mimetype)) {
               throw fastify.httpErrors.badRequest('Unsupported image type')
             }
@@ -93,10 +115,19 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
             )
             tempFilePath = localPath
             imageUrl = await uploadToImageKit(localPath, fileName)
-          } else if (typeof updateData.image === 'string') {
-            imageUrl = updateData.image
-          } else if (updateData.image === null) {
+            fastify.log.info(
+              { uploadedUrl: imageUrl },
+              '[UpdatePost] Uploaded new image',
+            )
+          } else if (typeof rawImage === 'string') {
+            imageUrl = rawImage
+            fastify.log.info(
+              { imageUrl },
+              '[UpdatePost] Using provided image string',
+            )
+          } else if (rawImage === null) {
             imageUrl = null
+            fastify.log.info('[UpdatePost] Explicitly clearing image (null)')
           }
         }
 
@@ -124,6 +155,11 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
           }),
         }
 
+        fastify.log.info(
+          { postUpdatePayload },
+          '[UpdatePost] Final Prisma update payload',
+        )
+
         const post = await fastify.prisma.$transaction(async (tx) => {
           const updatedPost = await tx.post.update({
             where: { id: postId },
@@ -141,6 +177,11 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
               },
             },
           })
+
+          fastify.log.info(
+            { updatedPost },
+            '[UpdatePost] Post after update transaction',
+          )
 
           await tx.userActivityLog.create({
             data: {
@@ -179,12 +220,15 @@ const updatePostRoute: FastifyPluginAsync = async (fastify) => {
           isSaved,
         })
 
+        fastify.log.info({ dto }, '[UpdatePost] Returning DTO')
+
         return reply.send({
           success: true,
           message: 'Post updated successfully.',
           data: { post: dto },
         })
       } catch (err) {
+        fastify.log.error({ err }, '[UpdatePost] Error caught')
         return postErrorHandler(authenticatedRequest, reply, err, context)
       } finally {
         if (tempFilePath) {

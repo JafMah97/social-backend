@@ -37,9 +37,25 @@ const likeCommentRoute: FastifyPluginAsync = async (fastify) => {
 
         // Check if comment exists
         const comment = await fastify.prisma.comment.findFirst({
-          where: {
-            id: commentId,
-            isDeleted: false,
+          where: { id: commentId, isDeleted: false },
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                profileImage: true,
+                fullName: true,
+              },
+            },
+            commentLikes: {
+              where: { isRemoved: false },
+              select: { userId: true },
+            },
+            _count: {
+              select: {
+                commentLikes: { where: { isRemoved: false } },
+              },
+            },
           },
         })
 
@@ -63,7 +79,6 @@ const likeCommentRoute: FastifyPluginAsync = async (fastify) => {
 
         await fastify.prisma.$transaction(async (tx) => {
           if (existingLike) {
-            // Update existing like (un-remove it)
             await tx.commentLike.update({
               where: {
                 userId_commentId: {
@@ -78,7 +93,6 @@ const likeCommentRoute: FastifyPluginAsync = async (fastify) => {
               },
             })
           } else {
-            // Create new like
             await tx.commentLike.create({
               data: {
                 userId: authenticatedRequest.user.id,
@@ -87,7 +101,6 @@ const likeCommentRoute: FastifyPluginAsync = async (fastify) => {
             })
           }
 
-          // Log activity
           await tx.userActivityLog.create({
             data: {
               userId: authenticatedRequest.user.id,
@@ -104,9 +117,26 @@ const likeCommentRoute: FastifyPluginAsync = async (fastify) => {
 
         fastify.log.info(`[Comment] Liked comment: ${commentId}`)
 
+        // ✅ Normalized response, same shape as create/edit/list
         return reply.status(200).send({
           success: true,
-          message: 'Comment liked successfully',
+          data: {
+            comment: {
+              id: comment.id,
+              postId: comment.postId,
+              content: comment.content,
+              createdAt: comment.createdAt,
+              updatedAt: comment.updatedAt,
+              likesCount: comment._count.commentLikes + 1, // incremented
+              isLiked: true,
+              author: {
+                id: comment.author.id,
+                username: comment.author.username,
+                profileImage: comment.author.profileImage,
+                fullName: comment.author.fullName,
+              },
+            },
+          },
         })
       } catch (err) {
         return commentErrorHandler(authenticatedRequest, reply, err, context)

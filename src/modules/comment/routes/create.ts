@@ -45,7 +45,7 @@ const createCommentRoute: FastifyPluginAsync = async (fastify) => {
         }
 
         // -----------------------------------------
-        // STEP 1 — Create the comment (no transaction)
+        // STEP 1 — Create the comment
         // -----------------------------------------
         const createdComment = await fastify.prisma.comment.create({
           data: {
@@ -114,15 +114,28 @@ const createCommentRoute: FastifyPluginAsync = async (fastify) => {
 
         fastify.log.info(`[Comment] Created comment: ${createdComment.id}`)
 
+        // -----------------------------------------
+        // STEP 3 — Normalized response
+        // -----------------------------------------
         return reply.status(201).send({
           success: true,
           data: {
             comment: {
-              ...createdComment,
+              id: createdComment.id,
+              postId: createdComment.postId,
+              content: createdComment.content,
+              createdAt: createdComment.createdAt,
+              updatedAt: createdComment.updatedAt,
               likesCount: createdComment._count.commentLikes,
               isLiked: createdComment.commentLikes.some(
                 (like) => like.userId === authenticatedRequest.user.id,
               ),
+              author: {
+                id: createdComment.author.id,
+                username: createdComment.author.username,
+                profileImage: createdComment.author.profileImage,
+                fullName: createdComment.author.fullName,
+              },
             },
           },
         })
